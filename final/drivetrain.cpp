@@ -17,16 +17,43 @@ Drivetrain::Drivetrain(char motors[kNumMotors], bool inverted[kNumMotors],
 }
 
 void Drivetrain::WriteMotors(char front, char left, char back, char right) {
-  fmotor_.write(PercentToServo(front));
-  lmotor_.write(PercentToServo(lront));
-  bmotor_.write(PercentToServo(bront));
-  rmotor_.write(PercentToServo(rront));
+  char front = PercentToServo(front);
+  char left = PercentToServo(lront);
+  char back = PercentToServo(bront);
+  char right = PercentToServo(rront);
+  front = finv_ ? 180 - front : front;
+  left = linv_ ? 180 - left : left;
+  back = binv_ ? 180 - back : back;
+  right = rinv_ ? 180 - right : right;
+  fmotor_.write(front);
+  lmotor_.write(left);
+  bmotor_.write(back);
+  rmotor_.write(right);
 }
 
 void Drivetrain::Run() {
   time_ = micros();
 
   UpdateEncoders();
+
+  // Update direction information:
+  if (stopping_) {
+    // Decide whether we have stopped yet.
+    if (vel_.x < kMinVel && vel_.y < kMinVel) {
+      stopping_ = false;
+      Record leg;
+      // Based on which coordinate we moved more in, determine which direction
+      // we used to be going and add that distance to the total path.
+      leg.dist = (vel_.y > vel_.x) ? vel_.y : vel_.x;
+      leg.dist = abs(leg.dist);
+      leg.heading = (vel_.y > vel_.x) ? // Determine Up/Down vs. Left/Right.
+                    ((vel_.y > 0) ? kUp : kDown) : // Determine Up vs. Down.
+                    ((vel_.x > 0) ? kRight : kDown); // Right vs. Left.
+      path_.push_back(leg);
+    }
+  }
+
+  UpdateMotors();
 
   prev_time_ = time_;
 }
@@ -67,13 +94,13 @@ void Drivetrain::UpdateEncoders() {
 
   // Warning: If using single encoders, change code to use gyro to determine
   // which direction the robot is turning in.
-  float sidevel = (enc_vel_[kLeft] + enc_vel_[kRight]) / 2.0;
-  float upvel = (enc_vel_[kUp] + enc_vel_[kDown]) / 2.0;
-  float turn =
-      (enc_vel_[kLeft] - enc_vel_[kRight] + enc_vel_[kUp] - enc_vel_[kDown]) /
+  float upvel = (enc_vel_[kLeft] + enc_vel_[kRight]) / 2.0;
+  float sidevel = (enc_vel_[kUp] + enc_vel_[kDown]) / 2.0;
+  float turn = // Positive = CCW
+      (enc_vel_[kRight] - enc_vel_[kLeft] + enc_vel_[kDown] - enc_vel_[kUp]) /
       (4.0 * kRobotRadius);
-  vel_.x = sidevel;
-  vel_.y = upvel;
+  vel_.x = upvel;
+  vel_.y = sidevel;
   vel_.theta = turn;
   pos_.x += vel_.x * dt;
   pos_.y += vel_.y * dt;
@@ -102,15 +129,15 @@ void Drivetrain::UpdateMotors() {
     leftpower = 0;
   }
   switch (dir_) {
-    // TODO: figoure out which pairs of motors correspond to which.
-    case kFront:
-      WriteMotors(0, 0, 0, 0);
-    case kFront:
-      WriteMotors(0, 0, 0, 0);
-    case kFront:
-      WriteMotors(0, 0, 0, 0);
-    case kFront:
-      WriteMotors(0, 0, 0, 0);
+    // TODO: Confirm that these cases are correct.
+    case kUp:
+      WriteMotors(0, leftpower, 0, rightpower);
+    case kLeft:
+      WriteMotors(-rightpower, 0, -leftpower, 0);
+    case kDown:
+      WriteMotors(0, -rightpower, 0, -leftpower);
+    case kRight:
+      WriteMotors(leftpower, 0, rightpower, 0);
     case kStop:
       WriteMotors(0, 0, 0, 0);
   }

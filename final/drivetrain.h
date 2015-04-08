@@ -37,6 +37,11 @@ class Drivetrain : public Loop {
   // an encoder associated with them. If only using one channel of the encoder,
   // enter the same number twice. The format of the array is [enc1a, enc1b,
   // enc2a, enc2b, enc3a, enc3b, enc4a, enc4b].
+  // The first motor (the one this code refers to as "front") is the one at the
+  // top if the robot, which points side-to-side. The next motors continue
+  // counter-clockwise around the robot. Encoders correspond to their motors.
+  // Motors, inversion, and encoders should be defined such that the positive
+  // direction is forwards and rightwards, as appropriate.
   Drivetrain(char motors[kNumMotors], bool inverted[kNumMotors],
              char encoder[kNumMotors*2]);
 
@@ -56,6 +61,9 @@ class Drivetrain : public Loop {
   const float kRobotRadius = 0.1; // Radius of robot.
   const char kNumMotors = 4;
   const float kPangle = 1.0, kPrate = 1.0;
+
+  // Velocity threshold at which we consider things stopped.
+  const float kMinVel = 0.01;
 
   // Converts a -100 to +100 value to run the motors at and converts it to the 0
   // to 180 value needed for the vex motor controllers.
