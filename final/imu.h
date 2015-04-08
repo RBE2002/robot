@@ -33,6 +33,7 @@ class IMU : Loop {
   double get_compass_rate() { return compass_rate_; }
   // Returns current best estimate of the rate.
   double get_rate() { return rate_; }
+  double get_angle() { return angle_; }
 
   // Set an estimate of the current robot's rotational velocity.
   void set_est_rate(double rate/*rad/sec*/) { est_rate_ = rate; }

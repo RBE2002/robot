@@ -1,6 +1,11 @@
 #include "Loop.h"
 
-IMU::IMU() : Loop(1e4 /*1e4us=>100Hz*/), est_rate_(0.0), est_rate_weight_(0) {
+IMU::IMU()
+    : Loop(1e4 /*1e4us=>100Hz*/),
+      est_rate_(0.0),
+      est_rate_weight_(0),
+      est_angle_(0.0),
+      est_angle_weight_(0) {
   Wire.begin();
 
   // Initialize the compass.
