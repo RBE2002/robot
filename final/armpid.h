@@ -21,7 +21,7 @@ class ArmPID : public Loop {
   // Also, this calls Servo::attach, which should not be called before the main
   // setup() function, so instances of this class should be initialized in or
   // after the setup() function.
-  ArmPID(uint8_t motor, uint8_t pot, uint8_t button, float p = 0.0, float i = 0.0,
+  ArmPID(uint8_t motor, uint8_t pot, float p = 0.0, float i = 0.0,
          float d = 0.0)
       : pot_(pot),
         p_(p),
@@ -30,10 +30,8 @@ class ArmPID : public Loop {
         prev_error_(0),
         sum_(0),
         setpoint_(0),
-        button_(button),
         Loop(1e4 /*10000us => 100 Hz*/) {
     motor_.attach(motor);
-    pinMode(button_, INPUT_PULLUP);
   }
 
   // Set all of the PID values.
@@ -63,15 +61,7 @@ class ArmPID : public Loop {
 
   // Convert between the output of the PID loop (which centers on zero and may
   // be inverted) to useful motor values (typically 0 - 180).
-  uint8_t OutToRaw(int out) {
-    if (!digitalRead(button_) && prev_error_ <= 0) {
-#ifdef DEBUG
-      Serial.println("Not bothering...");
-#endif  // DEBUG
-      return 90;
-    }
-    else return out + 90;
-  }
+  uint8_t OutToRaw(int out) { return out + 90; }
 
   // Current setpoint to use when calculating error.
   int setpoint_;
@@ -83,8 +73,6 @@ class ArmPID : public Loop {
   float p_, i_, d_;
   // Analog In port of pot.
   uint8_t pot_;
-  // Digital In for bottom button.
-  uint8_t button_;
   // Servo object for motor.
   Servo motor_;
 };

@@ -1,7 +1,9 @@
-#include "Loop.h"
+#include "loop.h"
+#include "imu.h"
 
 IMU::IMU()
     : Loop(1e4 /*1e4us=>100Hz*/),
+      gyro_zero_(0.0),
       est_rate_(0.0),
       est_rate_weight_(0),
       est_angle_(0.0),
@@ -14,18 +16,36 @@ IMU::IMU()
   // CTRL6 controls the resolution.
   compass_.writeReg(LSM303::CTRL6, k2Gauss);
   // Turn off accelerometer.
-  compass_.writeReg(LSM303::CTRL1, 0x00);
+  char AODR = 0x6 << 4; // 100Hz accel data selection.
+  char AZEN = 0x1 << 2;
+  char AYEN = 0x1 << 1;
+  char AXEN = 0x1;
+  char CTRL1 = AODR | AZEN | AYEN | AXEN;
+  compass_.writeReg(LSM303::CTRL1, CTRL1);
   // Update compass at 100Hz.
   char TEMP_EN = 0x00;  // Default (Disabled); 0x80 to enable. 1 bit.
   char M_RES = 0x60;    // Default (High Res); 0x00 for low. 2 bits.
   char M_ODR = 0x14;    // 100Hz (not default). 3 bits.
   char data = TEMP_EN | M_RES | M_ODR;
   compass_.writeReg(LSM303::CTRL5, data);
+  compass_.m_min = (LSM303::vector<int16_t>){-1382, -2367, -4469};
+  compass_.m_max = (LSM303::vector<int16_t>){2695, 1600, 3258};
 
   // Initialize the gyro. It is already initialized to the lowest dps option.
   gyro_.init();
   gyro_.enableDefault();
 
+}
+
+void IMU::CalibrateGyro() {
+  gyro_zero_ = 0;
+  int iterations = 100;
+  for (int i = 0; i < iterations; i++) {
+    gyro_.read();
+    gyro_zero_ += get_gyro_vel();
+    delay(50);
+  }
+  gyro_zero_ /= iterations;
 }
 
 // Called at 100Hz by the Loop stuff.
@@ -41,6 +61,7 @@ void IMU::Run() {
 }
 
 bool IMU::RejectCompass() {
+  return true;
   // If any of various conditions occur, then it will reject.
 
   double compass_rate = get_compass_rate();
@@ -62,16 +83,12 @@ bool IMU::RejectCompass() {
 }
 
 bool IMU::UpdateCompass() {
-  double heading = atan2(compass_.m.z, compass_.m.x); // TODO: Check axes.
-  // TODO: Consider using a faster atan2.
+  if (compass_.heading() == last_compass_heading_) return false;
 
-  if (compass_heading_ == heading) return false;
-
-  compass_heading_ = heading;
   compass_rate_ =
-      (compass_heading_ - last_compass_heading_) / (time_ - last_time_) * 1e6;
+      (compass_.heading() - last_compass_heading_) / (time_ - last_time_) * 1e6;
 
-  last_compass_heading_ = compass_heading_;
+  last_compass_heading_ = compass_.heading();
   return true;
 }
 
@@ -82,7 +99,6 @@ void IMU::Filter() {
           (kGyroRateWeight + est_rate_weight_);
 
   angle_ = (rate_ * (time_ - last_time_) * kPreviousAngleWeight +
-            get_compass_heading() * kCompassAngleWeight +
             est_angle_ * est_rate_weight_) /
-           (kPreviousAngleWeight + kCompassAngleWeight + est_rate_weight_);
+           (kPreviousAngleWeight + est_rate_weight_);
 }

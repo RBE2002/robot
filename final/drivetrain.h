@@ -3,9 +3,12 @@
 
 #include "Arduino.h"
 #include <Encoder.h>
+#include <Servo.h>
 
-#include "IMU.h"
-#include "Loop.h"
+#include "imu.h"
+#include "loop.h"
+#include "vector.h"
+#include "constants.h"
 
 // The drivetrain constructs and initializes the drivetrain motors, the IMU, and
 // the Encoders. You can access pointers for all of these through accessor
@@ -54,12 +57,13 @@ class Drivetrain : public Loop {
   // that we want to stop the robot completely.
   void Stop(bool resume=false); // Stops the robot; ends the current portion of the path.
 
+  void Run(); // Overrides Run from Loop class.
+
   IMU imu_;
  private:
   const float kTicksToMeters = 2.0 * PI / 90.0 /* ticks to radians */
                                * 0.02 /* radius of wheels, in m */;
   const float kRobotRadius = 0.1; // Radius of robot.
-  const char kNumMotors = 4;
   const float kPangle = 1.0, kPrate = 1.0;
 
   // Velocity threshold at which we consider things stopped.

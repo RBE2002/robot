@@ -7,14 +7,14 @@
 
 #include <math.h>
 
-#include "Loop.h"
+#include "loop.h"
 
 // All values in radians, seconds, or radians/sec.
 // This handles averaging the compass and gyro information.
 // It will consider rejecting a compass reading if the compass and gyro deviate
 // by too much or if the compass deviates too far from an estimate sent in by
 // the user (eg, from the encoders or the such).
-class IMU : Loop {
+class IMU : public Loop {
  public:
   enum CompassResolution {
     k2Gauss=0x00,
@@ -25,11 +25,15 @@ class IMU : Loop {
 
   IMU();
 
+  void CalibrateGyro();
+
   // Returns true if the compass is returning too crazy of values to use.
   bool RejectCompass();
 
-  double get_gyro_vel() { return (double)gyro_.g.z * kRawGyroToRad; }
-  double get_compass_heading() { return compass_heading_; }
+  double get_gyro_vel() {
+    return (double)gyro_.g.z * kRawGyroToRad - gyro_zero_;
+  }
+  double get_compass_heading() { return compass_.heading(); }
   double get_compass_rate() { return compass_rate_; }
   // Returns current best estimate of the rate.
   double get_rate() { return rate_; }
@@ -42,6 +46,8 @@ class IMU : Loop {
   // Set an estimate of the robot's current angle.
   void set_est_angle(double angle/*rad*/) { est_angle_ = angle; }
   void set_est_angle_weight(int weight) { est_angle_weight_ = weight; }
+
+  void Run();
  private:
   // Should be called at start of every iteration; updates compass rate as
   // appropriate. Returns true iff the state has changed.
@@ -64,6 +70,7 @@ class IMU : Loop {
   // Objects for compass and gyro devices. The compass also has an accelerometer.
   LSM303 compass_; // See https://github.com/pololu/lsm303-arduino/
   L3G gyro_; // See https://github.com/pololu/l3g-arduino/
+  double gyro_zero_;
 
   double angle_;    // Current most accurate estimate of angle.
   double rate_;     // Current most accurate rate_ estimate that we have.

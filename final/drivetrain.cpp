@@ -1,8 +1,9 @@
 #include "drivetrain.h"
 
 Drivetrain::Drivetrain(char motors[kNumMotors], bool inverted[kNumMotors],
-                       char encoder[kNumMotors*2])
-    : finv_(inverted[0]),
+                       char encoder[kNumMotors * 2])
+    : Loop(1e4 /* microseconds=>100Hz */),
+      finv_(inverted[0]),
       linv_(inverted[1]),
       binv_(inverted[2]),
       rinv_(inverted[3]),
@@ -17,18 +18,18 @@ Drivetrain::Drivetrain(char motors[kNumMotors], bool inverted[kNumMotors],
 }
 
 void Drivetrain::WriteMotors(char front, char left, char back, char right) {
-  char front = PercentToServo(front);
-  char left = PercentToServo(lront);
-  char back = PercentToServo(bront);
-  char right = PercentToServo(rront);
-  front = finv_ ? 180 - front : front;
-  left = linv_ ? 180 - left : left;
-  back = binv_ ? 180 - back : back;
-  right = rinv_ ? 180 - right : right;
-  fmotor_.write(front);
-  lmotor_.write(left);
-  bmotor_.write(back);
-  rmotor_.write(right);
+  char fraw = PercentToServo(front);
+  char lraw = PercentToServo(left);
+  char braw = PercentToServo(back);
+  char rraw = PercentToServo(right);
+  fraw = finv_ ? 180 - front : front;
+  lraw = linv_ ? 180 - left : left;
+  braw = binv_ ? 180 - back : back;
+  rraw = rinv_ ? 180 - right : right;
+  fmotor_.write(fraw);
+  lmotor_.write(lraw);
+  bmotor_.write(braw);
+  rmotor_.write(rraw);
 }
 
 void Drivetrain::Run() {
@@ -62,18 +63,19 @@ void Drivetrain::Run() {
 char Drivetrain::PercentToServo(char percent) {
   const int kMax = 140;
   const int kMin = 40;
-  const int kStartDead = 88;
-  const int kEndDead = 98;
-  // Inputs 0 - 600; outputs 98-139, inclusive.
-  const double kc0 = 96.523;
-  const double kc1 = 7.13e-2;
-  const double kc2 = -3e-4;
-  const double kc3 = 5e-7;
-  double x1 = abs(percent * 6);
+  const int kStartDead = 78;
+  const int kEndDead = 106;
+  // Inputs 0 - ~600; outputs 0 - 80, inclusive.
+  const double kc0 = (percent > 0) ? 82.06 : 106;
+  const double kc1 = -0.1;
+  const double kc2 = 2.68e-4;
+  const double kc3 = -4.9e-7;
+  double kc2_signed = (percent > 0) ? kc2 : -kc2;
+  double x1 = percent * 6;
   double x2 = x1 * x1;
   double x3 = x2 * x1;
-  double raw = kc0 + kc1 * x1 + kc2 * x2 + kc3 * x3;
-  if (percent < 0) raw = (180 - raw);
+  double raw = kc0 + kc1 * x1 + kc2_signed * x2 + kc3 * x3;
+  //if (percent < 0) raw = (180 - raw);
 
   if (percent == 0) raw = (kStartDead + kEndDead) / 2;
   return raw;
