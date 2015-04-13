@@ -5,7 +5,7 @@
 Encoder *fenc, *lenc, *benc, *renc;
 Servo motors[kNumMotors];
 
-unsigned long last_enc[kNumMotors];
+long last_enc[kNumMotors];
 int power = 180;
 
 void setup() {
@@ -16,14 +16,14 @@ void setup() {
   renc = new Encoder(encoder_ports[6], encoder_ports[7]);
 
   for (int i = 0; i < kNumMotors; i++) {
-    motors[i].attach(motor_ports[i], 1000, 2000);
+    //motors[i].attach(motor_ports[i], 1000, 2000);
     last_enc[i] = 0;
   }
 }
 
 void loop() {
   for (int i = 0; i < kNumMotors; i++) {
-    motors[i].write(power);
+    //motors[i].write(power);
   }
   delay(1000);
   long start[4];

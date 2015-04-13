@@ -1,4 +1,5 @@
 #include "drivetrain.h"
+//#define DEBUG
 
 Drivetrain::Drivetrain(char motors[kNumMotors], bool inverted[kNumMotors],
                        char encoder[kNumMotors * 2])
@@ -10,22 +11,42 @@ Drivetrain::Drivetrain(char motors[kNumMotors], bool inverted[kNumMotors],
       fenc_(encoder[0], encoder[1]),
       lenc_(encoder[2], encoder[3]),
       benc_(encoder[4], encoder[5]),
-      renc_(encoder[6], encoder[7]) {
+      renc_(encoder[6], encoder[7]),
+      wall_follow_(false),
+      range_(0),
+      lcd_(40, 41, 42, 43, 44, 45) {  // TODO: Break out range port definition.
   fmotor_.attach(motors[0], 1000, 2000);
   lmotor_.attach(motors[1], 1000, 2000);
   bmotor_.attach(motors[2], 1000, 2000);
   rmotor_.attach(motors[3], 1000, 2000);
+  lcd_.begin(16, 2);
+  /*
+  enc_zero_[0] = fenc_.read();
+  enc_zero_[1] = lenc_.read();
+  enc_zero_[2] = benc_.read();
+  enc_zero_[3] = renc_.read();
+  */
 }
 
 void Drivetrain::WriteMotors(char front, char left, char back, char right) {
-  char fraw = PercentToServo(front);
-  char lraw = PercentToServo(left);
-  char braw = PercentToServo(back);
-  char rraw = PercentToServo(right);
-  fraw = finv_ ? 180 - front : front;
-  lraw = linv_ ? 180 - left : left;
-  braw = binv_ ? 180 - back : back;
-  rraw = rinv_ ? 180 - right : right;
+  int fraw = PercentToServo(front);
+  int lraw = PercentToServo(left);
+  int braw = PercentToServo(back);
+  int rraw = PercentToServo(right);
+  fraw = finv_ ? 184 - fraw : fraw;
+  lraw = linv_ ? 184 - lraw : lraw;
+  braw = binv_ ? 184 - braw : braw;
+  rraw = rinv_ ? 184 - rraw : rraw;
+#ifdef DEBUG
+  Serial.print("Motor out vals: ");
+  Serial.print(fraw);
+  Serial.print("\t");
+  Serial.print(lraw);
+  Serial.print("\t");
+  Serial.print(braw);
+  Serial.print("\t");
+  Serial.println(rraw);
+#endif
   fmotor_.write(fraw);
   lmotor_.write(lraw);
   bmotor_.write(braw);
@@ -37,6 +58,14 @@ void Drivetrain::Run() {
 
   UpdateEncoders();
 
+#ifdef DEBUG
+  Serial.print("stopping_: ");
+  Serial.print(stopping_);
+  Serial.print(" Dir: ");
+  Serial.print(dir_);
+  Serial.print("\t");
+#endif
+
   // Update direction information:
   if (stopping_) {
     // Decide whether we have stopped yet.
@@ -45,12 +74,15 @@ void Drivetrain::Run() {
       Record leg;
       // Based on which coordinate we moved more in, determine which direction
       // we used to be going and add that distance to the total path.
-      leg.dist = (vel_.y > vel_.x) ? vel_.y : vel_.x;
+      leg.dist = (pos_.y > pos_.x) ? pos_.y : pos_.x;
       leg.dist = abs(leg.dist);
-      leg.heading = (vel_.y > vel_.x) ? // Determine Up/Down vs. Left/Right.
+      leg.heading = (pos_.y > pos_.x) ? // Determine Up/Down vs. Left/Right.
                     ((vel_.y > 0) ? kUp : kDown) : // Determine Up vs. Down.
                     ((vel_.x > 0) ? kRight : kDown); // Right vs. Left.
       path_.push_back(leg);
+      pos_.x = 0;
+      pos_.y = 0;
+      pos_.theta = 0;
     }
   }
 
@@ -111,6 +143,19 @@ void Drivetrain::UpdateEncoders() {
   imu_.set_est_rate_weight(1);  // TODO: Tune.
   imu_.set_est_angle(vel_.theta);
   imu_.set_est_angle_weight(1);
+  Serial.print(pos_.x);
+  Serial.print("\t");
+  Serial.print(pos_.y);
+  Serial.print("\t");
+  Serial.print(fenc_.read());
+  Serial.print("\t");
+  Serial.print(lenc_.read());
+  Serial.print("\t");
+  Serial.print(benc_.read());
+  Serial.print("\t");
+  Serial.println(renc_.read());
+#ifdef DEBUG
+#endif  // DEBUG
 }
 
 void Drivetrain::UpdateMotors() {
@@ -124,24 +169,35 @@ void Drivetrain::UpdateMotors() {
   double diffrate =
       kPrate * rate_error;  // TODO: Expand to full PID, or just PD.
   // TODO: Check that left/right are correct.
-  double rightpower = power_ + diffrate + diffangle;
-  double leftpower  = power_ - diffrate - diffangle;
+  double rightpower = power_ * 100 + diffrate + diffangle;
+  double leftpower  = power_ * 100 - diffrate - diffangle;
+
+  // Handle range issues.
+  float rangepower =  - kPrange * RangeError(kUp) * 100;
+  lcd_.clear();
+  lcd_.print(rangepower);
   if (stopping_) {
     rightpower = 0;
     leftpower = 0;
   }
   switch (dir_) {
     // TODO: Confirm that these cases are correct.
+    // TODO: Check sign on rangepower stuff.
     case kUp:
-      WriteMotors(0, leftpower, 0, rightpower);
+      WriteMotors(rangepower, leftpower, rangepower, rightpower);
+      break;
     case kLeft:
-      WriteMotors(-rightpower, 0, -leftpower, 0);
+      WriteMotors(-rightpower, rangepower, -leftpower, rangepower);
+      break;
     case kDown:
-      WriteMotors(0, -rightpower, 0, -leftpower);
+      WriteMotors(rangepower, -rightpower, rangepower, -leftpower);
+      break;
     case kRight:
-      WriteMotors(leftpower, 0, rightpower, 0);
+      WriteMotors(leftpower, rangepower, rightpower, rangepower);
+      break;
     case kStop:
       WriteMotors(0, 0, 0, 0);
+      break;
   }
 }
 
@@ -151,6 +207,7 @@ void Drivetrain::Stop(bool resume) {
 }
 
 void Drivetrain::DriveDirection(Direction heading, float power) {
+  if (heading == dir_) return;
   Stop(true); // Stop the robot before heading in a different direction.
   power_ = power;
   dir_ = heading;

@@ -7,6 +7,7 @@
 #include <math.h>
 #include "Arduino.h"
 
+#include "range.h"
 #include "loop.h"
 #include "imu.h"
 #include "drivetrain.h"

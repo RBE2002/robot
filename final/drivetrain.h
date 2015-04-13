@@ -4,11 +4,13 @@
 #include "Arduino.h"
 #include <Encoder.h>
 #include <Servo.h>
+#include <LiquidCrystal.h>
 
 #include "imu.h"
 #include "loop.h"
 #include "vector.h"
 #include "constants.h"
+#include "range.h"
 
 // The drivetrain constructs and initializes the drivetrain motors, the IMU, and
 // the Encoders. You can access pointers for all of these through accessor
@@ -59,12 +61,30 @@ class Drivetrain : public Loop {
 
   void Run(); // Overrides Run from Loop class.
 
+  void set_wall_follow(bool wall_follow) { wall_follow_ = wall_follow; }
+
+  float RangeError(Direction sensor_sel) { return kWallDist - range_.Dist(); }
+
+  void Update() {
+    Loop::Update();
+    imu_.Update();
+    range_.Update();
+  }
+
+  template <typename T> void print(T stuff) {
+    lcd_.clear();
+    lcd_.print(stuff);
+  }
+
   IMU imu_;
+
+  vector::Vector<Record> get_path() { return path_; }
  private:
-  const float kTicksToMeters = 2.0 * PI / 90.0 /* ticks to radians */
-                               * 0.02 /* radius of wheels, in m */;
+  const float kTicksToMeters = 2.0 * PI / 360.0 /* ticks to radians */
+                               * 0.035 /* radius of wheels, in m */;
   const float kRobotRadius = 0.1; // Radius of robot.
-  const float kPangle = 1.0, kPrate = 1.0;
+  const float kPangle = 5e-8, kPrate = 0, kPrange = 10;
+  const float kWallDist = 0.15;
 
   // Velocity threshold at which we consider things stopped.
   const float kMinVel = 0.01;
@@ -83,6 +103,7 @@ class Drivetrain : public Loop {
   float prev_enc_[kNumMotors];
   float enc_[kNumMotors];
   float enc_vel_[kNumMotors];
+  //long enc_zero_[kNumMotors];
   // Unfiltered state. IMU will do the filtering.
   Vector vel_;
   // pos_ is rezeroed with every new direction order.
@@ -96,5 +117,9 @@ class Drivetrain : public Loop {
   bool stopping_; // True if in process of stopping.
   double power_; // Power with which we are running the motors, 0.0 - 1.0;
   vector::Vector<Record> path_;
+  bool wall_follow_;
+  Range range_;
+
+  LiquidCrystal lcd_;
 };
 #endif  //  __DRIVETRAIN_H__
