@@ -4,6 +4,7 @@
 IMU::IMU()
     : Loop(1e4 /*1e4us=>100Hz*/),
       gyro_zero_(0.0),
+      angle_(0.0),
       est_rate_(0.0),
       est_rate_weight_(0),
       est_angle_(0.0),
@@ -42,7 +43,7 @@ void IMU::CalibrateGyro() {
   int iterations = 100;
   for (int i = 0; i < iterations; i++) {
     gyro_.read();
-    gyro_zero_ += get_gyro_vel();
+    gyro_zero_ += (double)gyro_.g.z * kRawGyroToRad;
     delay(50);
   }
   gyro_zero_ /= iterations;
@@ -94,11 +95,17 @@ bool IMU::UpdateCompass() {
 
 void IMU::Filter() {
   // For now, just use simplistic averaging.
-  rate_ = (get_gyro_vel() * kGyroRateWeight +
-           est_rate_ * est_rate_weight_) /
-          (kGyroRateWeight + est_rate_weight_);
+  rate_ = get_gyro_vel();//(get_gyro_vel() * kGyroRateWeight +
+           //est_rate_ * est_rate_weight_) /
+          //(kGyroRateWeight + est_rate_weight_);
 
-  angle_ = (rate_ * (time_ - last_time_) * kPreviousAngleWeight +
-            est_angle_ * est_rate_weight_) /
-           (kPreviousAngleWeight + est_rate_weight_);
+  angle_ = rate_ * (time_ - last_time_) * 1e-6 + angle_;// * kPreviousAngleWeight +
+           // est_angle_ * est_rate_weight_) /
+           //(kPreviousAngleWeight + est_rate_weight_);
+#ifdef DEBUG
+  Serial.print("rate:\t");
+  Serial.print(rate_);
+  Serial.print("\tangle:\t");
+  Serial.println(angle_);
+#endif
 }

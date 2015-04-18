@@ -56,7 +56,7 @@ class IMU : public Loop {
   // Combine compass, gyro, and, if provided, the est_rate_.
   void Filter();
 
-  const double kRawGyroToRad = 245.0 * PI / 180.0 / 32768.0;
+  const double kRawGyroToRad = 245.0 * PI / 180.0 / 32768.0 * 1.153 /*Tuned value*/;
 
   const int kCompassAngleWeight = 1000; // Tune.
   const int kGyroRateWeight = 1000;

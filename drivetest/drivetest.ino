@@ -18,14 +18,17 @@ unsigned long start;
 
 void setup() {
   Serial.begin(115200);
+  Serial.println("Program begun.");
   //====================
   // Construct various objects.
   //====================
   drive = new Drivetrain(motor_ports, motor_inversions, encoder_ports);
+  Serial.println("Beginning Gyro Calibration!");
   drive->imu_.CalibrateGyro();
+  Serial.println("Calibrated Gyro.");
   drive->set_wall_follow(true);
 
-  drive->DriveDirection(Drivetrain::kUp, 0.5);
+  drive->DriveDirection(Drivetrain::kUp, 1.0);
   start = millis();
 }
 
@@ -49,7 +52,6 @@ void loop() {
     drive->DriveDirection(Drivetrain::kUp, 0.5);
     updown = true;
   }
-  */
 
   if (millis() > start + 10000) {
     drive->Stop();
@@ -64,6 +66,7 @@ void loop() {
     }
     exit(0);
   }
+  */
 
   //====================
   // Update all periodic objects.

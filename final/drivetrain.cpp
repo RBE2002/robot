@@ -28,7 +28,7 @@ Drivetrain::Drivetrain(char motors[kNumMotors], bool inverted[kNumMotors],
   */
 }
 
-void Drivetrain::WriteMotors(char front, char left, char back, char right) {
+void Drivetrain::WriteMotors(int front, int left, int back, int right) {
   int fraw = PercentToServo(front);
   int lraw = PercentToServo(left);
   int braw = PercentToServo(back);
@@ -37,6 +37,12 @@ void Drivetrain::WriteMotors(char front, char left, char back, char right) {
   lraw = linv_ ? 184 - lraw : lraw;
   braw = binv_ ? 184 - braw : braw;
   rraw = rinv_ ? 184 - rraw : rraw;
+  int kMaxRaw = 175;
+  int kMinRaw = 5;
+  fraw = (fraw > kMaxRaw) ? kMaxRaw : (fraw < kMinRaw) ? kMinRaw : fraw;
+  lraw = (lraw > kMaxRaw) ? kMaxRaw : (lraw < kMinRaw) ? kMinRaw : lraw;
+  braw = (braw > kMaxRaw) ? kMaxRaw : (braw < kMinRaw) ? kMinRaw : braw;
+  rraw = (rraw > kMaxRaw) ? kMaxRaw : (rraw < kMinRaw) ? kMinRaw : rraw;
 #ifdef DEBUG
   Serial.print("Motor out vals: ");
   Serial.print(fraw);
@@ -70,6 +76,7 @@ void Drivetrain::Run() {
   if (stopping_) {
     // Decide whether we have stopped yet.
     if (vel_.x < kMinVel && vel_.y < kMinVel) {
+      Serial.println("Done Stopping!");
       stopping_ = false;
       Record leg;
       // Based on which coordinate we moved more in, determine which direction
@@ -92,7 +99,8 @@ void Drivetrain::Run() {
 }
 
 // Performs a third-order fit to linearize from percent to 0 - 180 scale.
-char Drivetrain::PercentToServo(char percent) {
+int Drivetrain::PercentToServo(int percent) {
+  percent = (percent > 100) ? 100 : (percent < -100) ? -100 : percent;
   const int kMax = 140;
   const int kMin = 40;
   const int kStartDead = 78;
@@ -140,9 +148,10 @@ void Drivetrain::UpdateEncoders() {
   pos_.y += vel_.y * dt;
   pos_.theta += vel_.theta;
   imu_.set_est_rate(vel_.theta);
-  imu_.set_est_rate_weight(1);  // TODO: Tune.
+  imu_.set_est_rate_weight(0);  // TODO: Tune.
   imu_.set_est_angle(vel_.theta);
-  imu_.set_est_angle_weight(1);
+  imu_.set_est_angle_weight(0);
+#ifdef DEBUG
   Serial.print(pos_.x);
   Serial.print("\t");
   Serial.print(pos_.y);
@@ -154,7 +163,6 @@ void Drivetrain::UpdateEncoders() {
   Serial.print(benc_.read());
   Serial.print("\t");
   Serial.println(renc_.read());
-#ifdef DEBUG
 #endif  // DEBUG
 }
 
@@ -163,7 +171,8 @@ void Drivetrain::UpdateMotors() {
   double angle = imu_.get_angle();
   double rate_error =
       rate - 0;  // Replace 0 with something else if we want to turn.
-  double angle_error = angle - (int)dir_ * PI / 2.0;
+  double angle_error = (int)dir_ * PI / 2.0 - angle;
+  Serial.println(angle_error);
   double diffangle =
       kPangle * angle_error;  // TODO: Expand to full PID, or just PD.
   double diffrate =
@@ -171,9 +180,13 @@ void Drivetrain::UpdateMotors() {
   // TODO: Check that left/right are correct.
   double rightpower = power_ * 100 + diffrate + diffangle;
   double leftpower  = power_ * 100 - diffrate - diffangle;
+  Serial.print("\t");
+  Serial.print(power_);
+  Serial.print("\t");
 
-  // Handle range issues.
+  // Handle wall following.
   float rangepower =  - kPrange * RangeError(kUp) * 100;
+  rangepower = wall_follow_ ? rangepower : 0;
   lcd_.clear();
   lcd_.print(rangepower);
   if (stopping_) {
@@ -207,8 +220,8 @@ void Drivetrain::Stop(bool resume) {
 }
 
 void Drivetrain::DriveDirection(Direction heading, float power) {
+  power_ = power;
   if (heading == dir_) return;
   Stop(true); // Stop the robot before heading in a different direction.
-  power_ = power;
   dir_ = heading;
 }

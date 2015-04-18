@@ -51,7 +51,7 @@ class Drivetrain : public Loop {
              char encoder[kNumMotors*2]);
 
   // Each is -100 to 100, where -100 is full CW and +100 is full CCW.
-  void WriteMotors(char front, char left, char back, char right);
+  void WriteMotors(int front, int left, int back, int right);
   // Stops the robot and then starts driving in the provided direction.
   void DriveDirection(Direction heading, float power /* 0.0 to 1.0 */);
   // pass true to resume in order to have the robot start travelling in the
@@ -71,7 +71,8 @@ class Drivetrain : public Loop {
     range_.Update();
   }
 
-  template <typename T> void print(T stuff) {
+  template <typename T>
+  void print(T stuff) {
     lcd_.clear();
     lcd_.print(stuff);
   }
@@ -83,7 +84,7 @@ class Drivetrain : public Loop {
   const float kTicksToMeters = 2.0 * PI / 360.0 /* ticks to radians */
                                * 0.035 /* radius of wheels, in m */;
   const float kRobotRadius = 0.1; // Radius of robot.
-  const float kPangle = 5e-8, kPrate = 0, kPrange = 10;
+  const float kPangle = 400, kPrate = 0, kPrange = 10;
   const float kWallDist = 0.15;
 
   // Velocity threshold at which we consider things stopped.
@@ -91,7 +92,7 @@ class Drivetrain : public Loop {
 
   // Converts a -100 to +100 value to run the motors at and converts it to the 0
   // to 180 value needed for the vex motor controllers.
-  char PercentToServo(char percent);
+  int PercentToServo(int percent);
   void UpdateEncoders();
   void UpdateMotors();
 
