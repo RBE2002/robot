@@ -23,4 +23,7 @@ static bool motor_inversions[kNumMotors] = {false, false, true, true};
 //static char encoder_ports[kNumMotors * 2] = {2, 22, 3, 23, 18, 24, 19, 25};
 static char encoder_ports[kNumMotors * 2] = {2, 2, 3, 3, 18, 18, 19, 19};
 
+static char turret_motor = 8;
+static char turret_pot = 1;
+
 #endif  // __CONSTANTS_H__

@@ -1,5 +1,5 @@
 /**
- * The ArmPID class is intended to provide a basic positional PID control for
+ * The TurretPID class is intended to provide a basic positional PID control for
  * something with one motor and a potentiometer for feedback.
  */
 #ifndef __ARMPID_H__
@@ -13,7 +13,7 @@
  * called at approximately the desired rate (it doesn't use interrupts or
  * anything, so it is just a soft guarantee).
  */
-class ArmPID : public Loop {
+class TurretPID : public Loop {
  public:
   // Constructor which takes a motor port, analog input for the pot, digital
   // input port for the bottom limit button, and initial PID values. Initializes
@@ -21,7 +21,7 @@ class ArmPID : public Loop {
   // Also, this calls Servo::attach, which should not be called before the main
   // setup() function, so instances of this class should be initialized in or
   // after the setup() function.
-  ArmPID(uint8_t motor, uint8_t pot, float p = 0.0, float i = 0.0,
+  TurretPID(uint8_t motor, uint8_t pot, float p = 0.0, float i = 0.0,
          float d = 0.0)
       : pot_(pot),
         p_(p),
@@ -31,7 +31,7 @@ class ArmPID : public Loop {
         sum_(0),
         setpoint_(0),
         Loop(1e4 /*10000us => 100 Hz*/) {
-    motor_.attach(motor);
+    motor_.attach(motor, 1000, 2000);
   }
 
   // Set all of the PID values.
