@@ -18,7 +18,8 @@ class Navigator : public Loop {
   void Update() {
     Loop::Update();
     drive_.Update();
-    //TODO: uncomment turret_.Update();
+    // TODO: uncomment turret.
+    //turret_.Update();
     red_.Update();
     black_.Update();
   }
@@ -47,6 +48,7 @@ class Navigator : public Loop {
 
   // State variables
   bool walling_; // Whether we are currently navigating around the walls.
+  bool saw_flame_;
 };
 
 #endif  // __NAVIGATOR_H__

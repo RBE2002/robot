@@ -4,10 +4,11 @@
 Navigator::Navigator()
     : Loop(1e4 /*100Hz*/),
       drive_(motor_ports, motor_inversions, encoder_ports, range_ports),
-      turret_(turret_motor, turret_pot),
+      turret_(turret_motor, turret_pot, 0.9, 0.01, 0.0),  // TODO: Tune
       red_(red_port),
       black_(black_port),
-      walling_(true) {
+      walling_(true),
+      saw_flame_(false) {
   fantilt_.attach(tilt_port);
   Tilt(-20);
   drive_.Stop();
@@ -26,7 +27,14 @@ void Navigator::Start() {
 
 void Navigator::Run() {
   UpdateTurret();
-  //if (black_.flame()) drive_.Stop();
+  if (red_.flame() && !saw_flame_) {
+    saw_flame_ = true;
+    drive_.DriveDist(0.5, drive_.leftdir(), 0.8, true);
+    drive_.set_navigating(false);
+    drive_.set_wall_follow(false);
+  }
+  if (saw_flame_) {
+  }
 }
 
 // Basically, we just want to keep the turret pointed at a right angle to our

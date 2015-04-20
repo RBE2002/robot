@@ -12,6 +12,7 @@ Drivetrain::Drivetrain(int motors[kNumMotors], bool inverted[kNumMotors],
       lenc_(encoder[2], encoder[3]),
       benc_(encoder[4], encoder[5]),
       renc_(encoder[6], encoder[7]),
+      cliff_(cliff_ports),
       wall_follow_(false),
       navigating_(false),
       uturn_(false),
@@ -109,7 +110,8 @@ void Drivetrain::Run() {
   if (navigating_) {
     // First, check for if we are about to hit a wall.
     if (AvgRangeError(dir_) >
-        -0.02 /*Tune so that inertia doesn't make us hit the wall*/) {
+        -0.02 /*Tune so that inertia doesn't make us hit the wall*/ ||
+        cliff_.on_line((CliffDetector::RobotSide)dir_)) {
       Serial.print("\nOh no! Running into wall:\t");
       Serial.println(AvgRangeError(dir_));
       DriveDirection(leftdir(), power_);
@@ -122,7 +124,7 @@ void Drivetrain::Run() {
       uturn_state_ = kForward;
       set_wall_follow(false);
       double cur_dist = ((int)dir_ % 2) ? pos_.x : pos_.y;
-      DriveDist(0.4 + cur_dist /*tune*/, dir_, power_);
+      DriveDist(0.4 + cur_dist /*tune*/, dir_, power_, false);
     }
     else if (AvgRangeError(rightdir()) > -0.00 /*Tune*/ && uturn_) {
       uturn_ = false;
@@ -139,11 +141,11 @@ void Drivetrain::Run() {
           break;
         case kSide:
           uturn_state_ = kBack;
-          DriveDist(0.4/*tune*/, rightdir(), power_);
+          DriveDist(0.6/*tune*/, rightdir(), power_, false);
           break;
         case kForward:
           uturn_state_ = kSide;
-          DriveDist(0.6/*tune*/, rightdir(), power_);
+          DriveDist(0.5/*tune*/, rightdir(), power_, false);
           break;
       }
     }
@@ -163,7 +165,7 @@ void Drivetrain::Run() {
       if (pos_.y > drive_dist_) drive_dist_done = true;
     }
   }
-  if (drive_dist_done) Stop(true);
+  if (drive_dist_done) Stop(!stop_drive_dist_);
 
   UpdateMotors();
 
@@ -261,7 +263,9 @@ void Drivetrain::UpdateMotors() {
 
   // Handle wall following.
   // Always use line following sensor to right of current direction.
+  // RangeError() returns negative if we are too far away.
   float rangepower =  - kPrange * RangeError(rightdir()) * 100;
+  if (cliff_.on_line((CliffDetector::RobotSide)rightdir())) rangepower = -50;
   rangepower = wall_follow_ ? rangepower : 0;
   lcd_.clear();
   lcd_.print(rangepower);
@@ -310,7 +314,8 @@ void Drivetrain::DriveDirection(Direction heading, float power) {
   dir_ = heading;
 }
 
-void Drivetrain::DriveDist(float distance, Direction heading, float power) {
+void Drivetrain::DriveDist(float distance, Direction heading, float power, bool stop) {
+  stop_drive_dist_ = stop;
   Serial.println("Driving Dist.");
   DriveDirection(heading, power);
   drive_dist_ = distance;

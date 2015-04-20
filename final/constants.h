@@ -35,8 +35,11 @@ static int tilt_port = 11; // digital
 // Analog Ports.
 static int range_ports[kNumMotors] = {1, 2, 3, 0};
 
+// Cliff Detector ports.
+static int cliff_ports[kNumMotors] = {5, 6, 7, 8};
+
 // Flame sensors
-static int red_port = 10;
+static int red_port = 4;
 static int black_port = 11;
 
 // Debug/Ancillary

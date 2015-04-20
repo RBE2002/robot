@@ -72,8 +72,8 @@ class TurretPID : public Loop {
 
  private:
   // TODO: Tune
-  const float kDegSlope = 1.0;
-  const int kDegOffset = 1;
+  const float kDegSlope = 0.1;
+  const int kDegOffset = 800;
   const int kMaxDeg = 180, kMinDeg = -180;
   // Performs the PID calculations, using the current setpoint and reading from
   // the ADC to calculate a value in units of the Servo::write function,

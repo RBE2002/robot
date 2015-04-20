@@ -23,16 +23,16 @@ void setup() {
   Serial.begin(115200);
   // motor, pot, p, i, d
   turret = new TurretPID(turret_motor, turret_pot, 0.9, 0.01, 0.0);
-  turret->set_setpoint(kMax);
+  turret->set_deg(0);
   start = millis();
   ccw = false;
 }
 
 void loop() {
-  if (start + 2000 < millis()) {
+  if (start + 5000 < millis()) {
     start = millis();
     ccw = !ccw;
-    turret->set_setpoint(ccw ? kMax : kMin);
+    turret->set_deg(ccw ? 180 : -90);
   }
   turret->Update();
 }

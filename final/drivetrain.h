@@ -13,6 +13,7 @@
 #include "range.h"
 #include "flamered.h"
 #include "flameblack.h"
+#include "cliffdetector.h"
 
 // The drivetrain constructs and initializes the drivetrain motors, the IMU, and
 // the Encoders. You can access pointers for all of these through accessor
@@ -57,7 +58,7 @@ class Drivetrain : public Loop {
   // Stops the robot and then starts driving in the provided direction.
   void DriveDirection(Direction heading, float power /* 0.0 to 1.0 */);
   // Roughly drives the robot a certain distance---as of yet, no PID.
-  void DriveDist(float distance, Direction heading, float power);
+  void DriveDist(float distance, Direction heading, float power, bool stop=true);
   // pass true to resume in order to have the robot start travelling in the
   // current direction after it finishes stopping the robot. By default, assume
   // that we want to stop the robot completely.
@@ -122,6 +123,7 @@ class Drivetrain : public Loop {
   // Range sensors; in order, they are the sensors pointing forwards, left,
   // back, and right.
   Range range_[kNumMotors];
+  CliffDetector cliff_;
 
   // All in meters or meters/sec.
   float prev_enc_[kNumMotors];
@@ -146,6 +148,7 @@ class Drivetrain : public Loop {
   bool navigating_; // Whether we will continue wall following after this move.
   bool uturn_; // Whether we are currently in a u-turn.
   float drive_dist_; // If negative, no limit on distance to drive.
+  bool stop_drive_dist_;
   enum {
     kForward,
     kSide,
