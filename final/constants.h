@@ -8,22 +8,38 @@
 // Numerical Constants.
 //====================
 
-static const char kNumMotors = 4;
+static const int kNumMotors = 4;
 
 //====================
 // Port numbers and information.
 // In general, order is: Front, Left, Back, Right.
 //====================
 
-static char motor_ports[kNumMotors] = {4, 5, 6, 7};
+// Drivetrain stuff:
+static int motor_ports[kNumMotors] = {4, 5, 6, 7};
 // For inversions, remember that forward/right = non-inverted.
 static bool motor_inversions[kNumMotors] = {false, false, true, true};
 // TODO: flip wires for down encoders.
+//static int encoder_ports[kNumMotors * 2] = {2, 22, 3, 23, 18, 24, 19, 25};
+static int encoder_ports[kNumMotors * 2] = {2, 2, 3, 3, 18, 18, 19, 19};
 
-//static char encoder_ports[kNumMotors * 2] = {2, 22, 3, 23, 18, 24, 19, 25};
-static char encoder_ports[kNumMotors * 2] = {2, 2, 3, 3, 18, 18, 19, 19};
+// Turret
+static int turret_motor = 8;
+static int turret_pot = 9;
 
-static char turret_motor = 8;
-static char turret_pot = 1;
+// Fan & Tilt
+static int fan_port = 29; // digital
+static int tilt_port = 11; // digital
+
+// Range sensors
+// Analog Ports.
+static int range_ports[kNumMotors] = {1, 2, 3, 0};
+
+// Flame sensors
+static int red_port = 10;
+static int black_port = 11;
+
+// Debug/Ancillary
+static int start_button = 28;
 
 #endif  // __CONSTANTS_H__

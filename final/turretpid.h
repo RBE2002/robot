@@ -43,17 +43,38 @@ class TurretPID : public Loop {
     d_ = d;
   }
 
+  // Note: when using degrees, 0 = forwards, + = CCW.
+  // Sets a setpoint by converting deg to an appropriate setpoint value for use
+  // by the PID loop.
+  void set_deg(int deg) {
+    if (deg > kMaxDeg) deg -= 360;
+    else if (deg < kMinDeg) deg += 360;
+    set_setpoint(deg * kDegSlope + kDegOffset);
+  }
+
+  // Return current position, in degrees.
+  int deg() {
+    return ((setpoint_ - prev_error_) - kDegOffset) / kDegSlope;
+  }
+
   // Set the desired setpoint.
   void set_setpoint(int setpoint) {
+    if (setpoint == setpoint_) return;
     sum_ = 0;
     setpoint_ = setpoint;
   }
+
+  int get_setpoint() { return setpoint_; }
 
   // Used by the Loop class; called once per cycle.
   // Actually performs PID calculation and writes it to the motor.
   void Run() { motor_.write(OutToRaw(Calc())); }
 
  private:
+  // TODO: Tune
+  const float kDegSlope = 1.0;
+  const int kDegOffset = 1;
+  const int kMaxDeg = 180, kMinDeg = -180;
   // Performs the PID calculations, using the current setpoint and reading from
   // the ADC to calculate a value in units of the Servo::write function,
   // although it will be centered on zero and may be inverted.

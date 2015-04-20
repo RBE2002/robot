@@ -31,7 +31,7 @@ class IMU : public Loop {
   bool RejectCompass();
 
   double get_gyro_vel() {
-    return (double)gyro_.g.z * kRawGyroToRad - gyro_zero_;
+    return -((double)gyro_.g.z * kRawGyroToRad - gyro_zero_);
   }
   double get_compass_heading() { return compass_.heading(); }
   double get_compass_rate() { return compass_rate_; }

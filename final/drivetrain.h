@@ -11,6 +11,8 @@
 #include "vector.h"
 #include "constants.h"
 #include "range.h"
+#include "flamered.h"
+#include "flameblack.h"
 
 // The drivetrain constructs and initializes the drivetrain motors, the IMU, and
 // the Encoders. You can access pointers for all of these through accessor
@@ -47,13 +49,15 @@ class Drivetrain : public Loop {
   // counter-clockwise around the robot. Encoders correspond to their motors.
   // Motors, inversion, and encoders should be defined such that the positive
   // direction is forwards and rightwards, as appropriate.
-  Drivetrain(char motors[kNumMotors], bool inverted[kNumMotors],
-             char encoder[kNumMotors*2]);
+  Drivetrain(int motors[kNumMotors], bool inverted[kNumMotors],
+             int encoder[kNumMotors*2], int range[kNumMotors]);
 
   // Each is -100 to 100, where -100 is full CW and +100 is full CCW.
   void WriteMotors(int front, int left, int back, int right);
   // Stops the robot and then starts driving in the provided direction.
   void DriveDirection(Direction heading, float power /* 0.0 to 1.0 */);
+  // Roughly drives the robot a certain distance---as of yet, no PID.
+  void DriveDist(float distance, Direction heading, float power);
   // pass true to resume in order to have the robot start travelling in the
   // current direction after it finishes stopping the robot. By default, assume
   // that we want to stop the robot completely.
@@ -62,13 +66,20 @@ class Drivetrain : public Loop {
   void Run(); // Overrides Run from Loop class.
 
   void set_wall_follow(bool wall_follow) { wall_follow_ = wall_follow; }
+  void set_navigating(bool navigate) { navigating_ = navigate; }
 
-  float RangeError(Direction sensor_sel) { return kWallDist - range_.Dist(); }
+  float RangeError(Direction sensor_sel) {
+    return kWallDist - range_[(int)sensor_sel].Dist();
+  }
+
+  float AvgRangeError(Direction sensor_sel) {
+    return kWallDist - range_[(int)sensor_sel].Avg();
+  }
 
   void Update() {
     Loop::Update();
     imu_.Update();
-    range_.Update();
+    for (int i = 0; i < kNumMotors; i++) range_[i].Update();
   }
 
   template <typename T>
@@ -80,11 +91,18 @@ class Drivetrain : public Loop {
   IMU imu_;
 
   vector::Vector<Record> get_path() { return path_; }
+  Direction dir() { return dir_; }
+
+  // direction to right of current one.
+  Direction rightdir() { return (Direction)(((int)dir_ + 3) % 4); }
+  // direction to left of current one.
+  Direction leftdir() { return (Direction)(((int)dir_ + 1) % 4); }
+
  private:
   const float kTicksToMeters = 2.0 * PI / 360.0 /* ticks to radians */
                                * 0.035 /* radius of wheels, in m */;
   const float kRobotRadius = 0.1; // Radius of robot.
-  const float kPangle = 400, kPrate = 0, kPrange = 10;
+  const float kPangle = 200, kPrate = 0, kPrange = 10;
   const float kWallDist = 0.15;
 
   // Velocity threshold at which we consider things stopped.
@@ -99,12 +117,14 @@ class Drivetrain : public Loop {
   Servo fmotor_, lmotor_, bmotor_, rmotor_;
   bool finv_, linv_, binv_, rinv_;
   Encoder fenc_, lenc_, benc_, renc_;
+  // Range sensors; in order, they are the sensors pointing forwards, left,
+  // back, and right.
+  Range range_[kNumMotors];
 
   // All in meters or meters/sec.
   float prev_enc_[kNumMotors];
   float enc_[kNumMotors];
   float enc_vel_[kNumMotors];
-  //long enc_zero_[kNumMotors];
   // Unfiltered state. IMU will do the filtering.
   Vector vel_;
   // pos_ is rezeroed with every new direction order.
@@ -118,8 +138,15 @@ class Drivetrain : public Loop {
   bool stopping_; // True if in process of stopping.
   double power_; // Power with which we are running the motors, 0.0 - 1.0;
   vector::Vector<Record> path_;
-  bool wall_follow_;
-  Range range_;
+  bool wall_follow_; // Whether, at this instant, we are wall following.
+  bool navigating_; // Whether we will continue wall following after this move.
+  bool uturn_; // Whether we are currently in a u-turn.
+  float drive_dist_; // If negative, no limit on distance to drive.
+  enum {
+    kForward,
+    kSide,
+    kBack
+  } uturn_state_; // Which leg of the uturn we are in.
 
   LiquidCrystal lcd_;
 };

@@ -19,12 +19,11 @@ int TurretPID::Calc() {
   if (retval > max) retval = max;
   if (retval < -max) retval = -max;
   prev_error_ = error;
-  // Debugging prints.
+#ifdef DEBUG
   Serial.print("Error:\t");
   Serial.print(error);
   Serial.print("\tOut:\t");
   Serial.println(retval);
-#ifdef DEBUG
 #endif  // DEBUG
   return retval;
 }

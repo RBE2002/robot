@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <LSM303.h>
 #include <L3G.h>
+#include <LiquidCrystal.h>
 
 #include <math.h>
 #include "Arduino.h"
@@ -12,14 +13,23 @@
 #include "imu.h"
 #include "drivetrain.h"
 #include "constants.h"
+#include "navigator.h"
 
-Drivetrain *drive;
+Navigator *nav;
 
 void setup() {
+  Serial.begin(115200);
+  Serial.println("Program Started.");
   //====================
   // Construct various objects.
   //====================
-  drive = new Drivetrain(motor_ports, motor_inversions, encoder_ports);
+  nav = new Navigator();
+
+  // Wait for button press in order to begin.
+  pinMode(start_button, INPUT_PULLUP);
+  while (digitalRead(start_button)) continue;
+  Serial.println("Beginning!");
+  nav->Start();
 }
 
 void loop() {
@@ -27,5 +37,5 @@ void loop() {
   //====================
   // Update all periodic objects.
   //====================
-  drive->Update();
+  nav->Update();
 }

@@ -22,13 +22,14 @@ void setup() {
   //====================
   // Construct various objects.
   //====================
-  drive = new Drivetrain(motor_ports, motor_inversions, encoder_ports);
+  drive = new Drivetrain(motor_ports, motor_inversions, encoder_ports, range_ports);
   Serial.println("Beginning Gyro Calibration!");
   drive->imu_.CalibrateGyro();
   Serial.println("Calibrated Gyro.");
-  drive->set_wall_follow(true);
+  drive->set_wall_follow(false);
+  drive->set_navigating(false);
 
-  drive->DriveDirection(Drivetrain::kUp, 1.0);
+  drive->DriveDist(0.5, Drivetrain::kUp, 0.5);
   start = millis();
 }
 

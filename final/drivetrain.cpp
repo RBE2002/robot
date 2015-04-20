@@ -1,8 +1,8 @@
 #include "drivetrain.h"
 //#define DEBUG
 
-Drivetrain::Drivetrain(char motors[kNumMotors], bool inverted[kNumMotors],
-                       char encoder[kNumMotors * 2])
+Drivetrain::Drivetrain(int motors[kNumMotors], bool inverted[kNumMotors],
+                       int encoder[kNumMotors * 2], int range[kNumMotors])
     : Loop(1e4 /* microseconds=>100Hz */),
       finv_(inverted[0]),
       linv_(inverted[1]),
@@ -13,19 +13,24 @@ Drivetrain::Drivetrain(char motors[kNumMotors], bool inverted[kNumMotors],
       benc_(encoder[4], encoder[5]),
       renc_(encoder[6], encoder[7]),
       wall_follow_(false),
-      range_(0),
+      navigating_(false),
+      uturn_(false),
+      drive_dist_(-1),
       lcd_(40, 41, 42, 43, 44, 45) {  // TODO: Break out range port definition.
   fmotor_.attach(motors[0], 1000, 2000);
   lmotor_.attach(motors[1], 1000, 2000);
   bmotor_.attach(motors[2], 1000, 2000);
   rmotor_.attach(motors[3], 1000, 2000);
+  pos_.x = 0;
+  pos_.y = 0;
+  pos_.theta = 0;
   lcd_.begin(16, 2);
-  /*
-  enc_zero_[0] = fenc_.read();
-  enc_zero_[1] = lenc_.read();
-  enc_zero_[2] = benc_.read();
-  enc_zero_[3] = renc_.read();
-  */
+  for (int i = 0; i < kNumMotors; i++) {
+    range_[i].init(range[i]);
+    enc_[i] = 0;
+    prev_enc_[i] = 0;
+    enc_vel_[i] = 0;
+  }
 }
 
 void Drivetrain::WriteMotors(int front, int left, int back, int right) {
@@ -93,6 +98,65 @@ void Drivetrain::Run() {
     }
   }
 
+  Serial.println(AvgRangeError(rightdir()));
+  // Determine whether we have hit a wall/edge and need to change our motion.
+  if (navigating_) {
+    // First, check for if we are about to hit a wall.
+    if (AvgRangeError(dir_) >
+        -0.02 /*Tune so that inertia doesn't make us hit the wall*/) {
+      Serial.print("\nOh no! Running into wall. Distance to wall:\t");
+      Serial.println(range_[(int)dir_].Avg());
+      DriveDirection(leftdir(), power_);
+    }
+    // Check if we have reached the end of a wall and should uturn.
+    else if (AvgRangeError(rightdir()) < -0.25 /*Tune*/ && !uturn_) {
+      Serial.print("\nPAST wall. Distance to wall:\t");
+      Serial.println(range_[(int)rightdir()].Avg());
+      uturn_ = true;
+      uturn_state_ = kForward;
+      set_wall_follow(false);
+      DriveDist(0.3 /*tune*/, dir_, power_);
+    }
+    else if (AvgRangeError(rightdir()) > -0.15 /*Tune*/ && uturn_) {
+      uturn_ = false;
+      set_wall_follow(true);
+      DriveDirection(dir_, power_);
+    }
+    // Check if we are in a uturn and need to change direction.
+    else if (uturn_ && drive_dist_ < 0) {
+      switch (uturn_state_) {
+        case kBack:
+          uturn_ = false;
+          set_wall_follow(true);
+          DriveDirection(dir_, power_);
+          break;
+        case kSide:
+          uturn_state_ = kBack;
+          // Fall through.
+        case kForward:
+          uturn_state_ = kSide;
+          DriveDist(0.3/*tune*/, rightdir(), power_);
+          break;
+      }
+    }
+  }
+
+  // Handle drive_dist stuff.
+  bool drive_dist_done = false;
+  if (drive_dist_ > 0) {
+    Serial.print(pos_.x);
+    Serial.print("\t");
+    Serial.println(pos_.y);
+    // Check if we are going up/down or right/left.
+    if ((int)dir_ % 2) {  // side-to-side
+      if (pos_.x > drive_dist_) drive_dist_done = true;
+    }
+    else {
+      if (pos_.y > drive_dist_) drive_dist_done = true;
+    }
+  }
+  if (drive_dist_done) Stop(true);
+
   UpdateMotors();
 
   prev_time_ = time_;
@@ -141,8 +205,8 @@ void Drivetrain::UpdateEncoders() {
   float turn = // Positive = CCW
       (enc_vel_[kRight] - enc_vel_[kLeft] + enc_vel_[kDown] - enc_vel_[kUp]) /
       (4.0 * kRobotRadius);
-  vel_.x = upvel;
-  vel_.y = sidevel;
+  vel_.x = sidevel;
+  vel_.y = upvel;
   vel_.theta = turn;
   pos_.x += vel_.x * dt;
   pos_.y += vel_.y * dt;
@@ -171,21 +235,25 @@ void Drivetrain::UpdateMotors() {
   double angle = imu_.get_angle();
   double rate_error =
       rate - 0;  // Replace 0 with something else if we want to turn.
-  double angle_error = (int)dir_ * PI / 2.0 - angle;
-  Serial.println(angle_error);
+  double angle_error = -angle;
+  if (angle_error > PI) angle_error -= 2 * PI;
+  if (angle_error < -PI) angle_error += 2 * PI;
   double diffangle =
-      kPangle * angle_error;  // TODO: Expand to full PID, or just PD.
+      constrain(kPangle * angle_error, -30, 30);  // TODO: Expand to full PID, or just PD.
   double diffrate =
       kPrate * rate_error;  // TODO: Expand to full PID, or just PD.
   // TODO: Check that left/right are correct.
-  double rightpower = power_ * 100 + diffrate + diffangle;
-  double leftpower  = power_ * 100 - diffrate - diffangle;
+  double rightpower = power_ * 100 + diffrate - diffangle;
+  double leftpower  = power_ * 100 - diffrate + diffangle;
+#ifdef DEBUG
+  Serial.print(angle_error);
   Serial.print("\t");
-  Serial.print(power_);
-  Serial.print("\t");
+  Serial.println(power_);
+#endif  // DEBUG
 
   // Handle wall following.
-  float rangepower =  - kPrange * RangeError(kUp) * 100;
+  // Always use line following sensor to right of current direction.
+  float rangepower =  - kPrange * RangeError(rightdir()) * 100;
   rangepower = wall_follow_ ? rangepower : 0;
   lcd_.clear();
   lcd_.print(rangepower);
@@ -203,10 +271,10 @@ void Drivetrain::UpdateMotors() {
       WriteMotors(-rightpower, rangepower, -leftpower, rangepower);
       break;
     case kDown:
-      WriteMotors(rangepower, -rightpower, rangepower, -leftpower);
+      WriteMotors(-rangepower, -rightpower, -rangepower, -leftpower);
       break;
     case kRight:
-      WriteMotors(leftpower, rangepower, rightpower, rangepower);
+      WriteMotors(leftpower, -rangepower, rightpower, -rangepower);
       break;
     case kStop:
       WriteMotors(0, 0, 0, 0);
@@ -215,13 +283,27 @@ void Drivetrain::UpdateMotors() {
 }
 
 void Drivetrain::Stop(bool resume) {
+  drive_dist_ = -1;
   if (!resume) dir_ = kStop;
   stopping_ = true;
 }
 
 void Drivetrain::DriveDirection(Direction heading, float power) {
+  Serial.print("Driving Power: ");
+  Serial.print(power);
+  Serial.print("\tHeading: ");
+  Serial.println(heading);
+#ifdef DEBUG
+#endif  // DEBUG
+  drive_dist_ = -1;
   power_ = power;
   if (heading == dir_) return;
   Stop(true); // Stop the robot before heading in a different direction.
   dir_ = heading;
+}
+
+void Drivetrain::DriveDist(float distance, Direction heading, float power) {
+  Serial.println("Driving Dist.");
+  DriveDirection(heading, power);
+  drive_dist_ = distance;
 }

@@ -102,6 +102,8 @@ void IMU::Filter() {
   angle_ = rate_ * (time_ - last_time_) * 1e-6 + angle_;// * kPreviousAngleWeight +
            // est_angle_ * est_rate_weight_) /
            //(kPreviousAngleWeight + est_rate_weight_);
+  if (angle_ > PI) angle_ -= 2 * PI;
+  else if (angle_ < -PI) angle_ += 2 * PI;
 #ifdef DEBUG
   Serial.print("rate:\t");
   Serial.print(rate_);
