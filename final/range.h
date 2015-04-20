@@ -15,8 +15,10 @@ class Range : public Loop {
       : Loop(1e4 /*100Hz*/), type_(type), first_(true) {
     init(port);
     for (int i = 0; i < kHistLen; i++) {
-      hist_[i] = 0;
+      hist_[i] = 0.15;
     }
+    dist_ = 0.15;
+    avg_ = 0.15;
   }
 
   void init(int port) {
@@ -24,22 +26,24 @@ class Range : public Loop {
   }
 
   float Dist() { // meters
-    return hist_[0];
+    return dist_;
   }
 
   float Avg() {
-    float avg = 0.0;
-    for (int i = 0; i < kHistLen; i++) {
-      avg += hist_[i];
-    }
-    return avg / kHistLen;
+    return avg_;
   }
 
   void Run() {
-    for (int i = 4; i > 0; i--) {
-      hist_[i] = hist_[i - 1];
+    float avg = 0.0;
+    for (int i = kHistLen - 1; i > 0; i--) {
+      float newval = hist_[i - 1];
+      hist_[i] = newval;
+      avg += newval;
     }
-    hist_[0] = SharpDist();
+    dist_ = SharpDist();
+    hist_[0] = dist_;
+    avg += dist_;
+    avg_ = avg / (float)kHistLen;
   }
 
  private:
@@ -51,52 +55,26 @@ class Range : public Loop {
 
   float SharpDist() {
     int raw = constrain(analogRead(port_), 70, 700);
-    return Interpolate(raw, 13);
-  }
-
-  // Interpolate assumes that data is in decreasing order by x (x corresponds to
-  // the x of Point). the length (len) of data must be >= 2.
-  float Interpolate(int x, int len) {
+    const float kCoeff = 0.822;
+    const float kBase = 0.416;
+    float retval = kCoeff * pow(kBase, (float)raw * 5.0 / 1023.0);
     if (first_) {
-      int x = kSharpData[0].x * 1;
+      for (int i = 0; i < kHistLen; i++) {
+        hist_[i] = retval;
+      }
       first_ = false;
-      delay(1);
     }
-    if (x > kSharpData[0].x)
-      return InterpolateTwo(x, kSharpData[0], kSharpData[1]);
-    for (int i = 1; i < len; i++) {
-      if (kSharpData[i].x < x)
-        return InterpolateTwo(x, kSharpData[i - 1], kSharpData[i]);
-    }
-    return InterpolateTwo(x, kSharpData[len - 2], kSharpData[len - 1]);
+    return retval;
   }
 
-  // Given two points, creates a line and determines what dist corresponds to
-  // the given x.
-  float InterpolateTwo(int x, Point one, Point two) {
-    double m = (two.dist - one.dist) / (two.x - one.x);
-    double b = one.dist - one.x * m;
-    return m * x + b;
-  }
   int port_;
   Type type_;
   bool first_;
-  static const int kHistLen = 5;
+  static const int kHistLen = 20;
   double
       hist_[kHistLen];  // Store a history of the last few distances. 0 = most recent.
-  const Point kSharpData[13] = {{645, 0.06},
-                                {610, 0.07},
-                                {563, 0.08},
-                                {471, 0.1},
-                                {338, 0.15},
-                                {266, 0.2},
-                                {221, 0.25},
-                                {188, 0.3},
-                                {153, 0.4},
-                                {127, 0.5},
-                                {104, 0.6},
-                                {92, 0.7},
-                                {84, 0.8}};
+  double dist_;
+  double avg_;
 };
 
 #endif  // __RANGE_H__

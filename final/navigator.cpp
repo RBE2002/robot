@@ -12,8 +12,10 @@ Navigator::Navigator()
   Tilt(-20);
   drive_.Stop();
   Serial.println("Calibrating Gyro...");
+  print("Calibrating...");
   drive_.imu_.CalibrateGyro();
   Serial.println("Done Calibrating Gyro.");
+  print("Done Calibrating");
 }
 
 void Navigator::Start() {
@@ -24,7 +26,7 @@ void Navigator::Start() {
 
 void Navigator::Run() {
   UpdateTurret();
-  if (black_.flame()) drive_.Stop();
+  //if (black_.flame()) drive_.Stop();
 }
 
 // Basically, we just want to keep the turret pointed at a right angle to our

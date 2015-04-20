@@ -65,6 +65,13 @@ void Drivetrain::WriteMotors(int front, int left, int back, int right) {
 }
 
 void Drivetrain::Run() {
+  Serial.print(AvgRangeError(kUp));
+  Serial.print("\t");
+  Serial.print(AvgRangeError(kLeft));
+  Serial.print("\t");
+  Serial.print(AvgRangeError(kDown));
+  Serial.print("\t");
+  Serial.println(AvgRangeError(kRight));
   time_ = micros();
 
   UpdateEncoders();
@@ -98,26 +105,26 @@ void Drivetrain::Run() {
     }
   }
 
-  Serial.println(AvgRangeError(rightdir()));
   // Determine whether we have hit a wall/edge and need to change our motion.
   if (navigating_) {
     // First, check for if we are about to hit a wall.
     if (AvgRangeError(dir_) >
         -0.02 /*Tune so that inertia doesn't make us hit the wall*/) {
-      Serial.print("\nOh no! Running into wall. Distance to wall:\t");
-      Serial.println(range_[(int)dir_].Avg());
+      Serial.print("\nOh no! Running into wall:\t");
+      Serial.println(AvgRangeError(dir_));
       DriveDirection(leftdir(), power_);
     }
     // Check if we have reached the end of a wall and should uturn.
-    else if (AvgRangeError(rightdir()) < -0.25 /*Tune*/ && !uturn_) {
+    else if (AvgRangeError(rightdir()) < -0.10 /*Tune*/ && !uturn_) {
       Serial.print("\nPAST wall. Distance to wall:\t");
-      Serial.println(range_[(int)rightdir()].Avg());
+      Serial.println(AvgRangeError(rightdir()));
       uturn_ = true;
       uturn_state_ = kForward;
       set_wall_follow(false);
-      DriveDist(0.3 /*tune*/, dir_, power_);
+      double cur_dist = ((int)dir_ % 2) ? pos_.x : pos_.y;
+      DriveDist(0.4 + cur_dist /*tune*/, dir_, power_);
     }
-    else if (AvgRangeError(rightdir()) > -0.15 /*Tune*/ && uturn_) {
+    else if (AvgRangeError(rightdir()) > -0.00 /*Tune*/ && uturn_) {
       uturn_ = false;
       set_wall_follow(true);
       DriveDirection(dir_, power_);
@@ -132,10 +139,11 @@ void Drivetrain::Run() {
           break;
         case kSide:
           uturn_state_ = kBack;
-          // Fall through.
+          DriveDist(0.4/*tune*/, rightdir(), power_);
+          break;
         case kForward:
           uturn_state_ = kSide;
-          DriveDist(0.3/*tune*/, rightdir(), power_);
+          DriveDist(0.6/*tune*/, rightdir(), power_);
           break;
       }
     }

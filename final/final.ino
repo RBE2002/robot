@@ -27,7 +27,7 @@ void setup() {
 
   // Wait for button press in order to begin.
   pinMode(start_button, INPUT_PULLUP);
-  while (digitalRead(start_button)) continue;
+  while (digitalRead(start_button)) nav->Update();
   Serial.println("Beginning!");
   nav->Start();
 }

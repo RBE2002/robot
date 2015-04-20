@@ -23,6 +23,10 @@ class Navigator : public Loop {
     black_.Update();
   }
   void Run();
+  template <typename T>
+  void print(T stuff) {
+    drive_.print(stuff);
+  }
  private:
   const float kTiltSlope = -1.6;
   const int kTiltOffset = 100;

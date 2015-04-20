@@ -73,7 +73,9 @@ class Drivetrain : public Loop {
   }
 
   float AvgRangeError(Direction sensor_sel) {
-    return kWallDist - range_[(int)sensor_sel].Avg();
+    float avg = range_[(int)sensor_sel].Avg();
+    float err = kWallDist - avg;
+    return err;
   }
 
   void Update() {
@@ -129,6 +131,8 @@ class Drivetrain : public Loop {
   Vector vel_;
   // pos_ is rezeroed with every new direction order.
   Vector pos_;
+  // abs_pos_ is not zeroed on every change.
+  Vector abs_pos_;
 
   // Microseconds
   unsigned long prev_time_;
