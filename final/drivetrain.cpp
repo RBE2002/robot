@@ -168,7 +168,7 @@ void Drivetrain::Run() {
       else drive_dist_done_ = false;
     }
   }
-  if (drive_dist_done) Stop(!stop_drive_dist_);
+  if (drive_dist_done_) Stop(!stop_drive_dist_);
 
   UpdateMotors();
 
@@ -224,6 +224,11 @@ void Drivetrain::UpdateEncoders() {
   pos_.x += vel_.x * dt;
   pos_.y += vel_.y * dt;
   pos_.theta += vel_.theta;
+  // abs_pos actulaly cares about the sign, so determine if the direction is up
+  // or right (using the modulo 3).
+  abs_pos_.x += vel_.x * dt * (((int)dir_ % 3) ? -1 : 1);
+  abs_pos_.y += vel_.y * dt * (((int)dir_ % 3) ? -1 : 1);
+  abs_pos_.theta += vel_.theta * dt;
   imu_.set_est_rate(vel_.theta);
   imu_.set_est_rate_weight(0);  // TODO: Tune.
   imu_.set_est_angle(vel_.theta);

@@ -17,7 +17,7 @@ Navigator::Navigator()
   drive_.imu_.CalibrateGyro();
   Serial.println("Done Calibrating Gyro.");
   print("Done Calibrating");
-  pinMode(fan_port);
+  pinMode(fan_port, OUTPUT);
 }
 
 void Navigator::Start() {
@@ -30,22 +30,22 @@ void Navigator::Run() {
   UpdateTurret();
   // TODO: Refine this so it all is actually accurate, reports positions, etc.
   if (flame_out_) {
-    if (drive.get_path().size() >= num_legs_ * 2) {
-      drive.Stop();
+    if (drive_.get_path().size() >= num_legs_ * 2) {
+      drive_.Stop();
     }
   } else if (red_.flame() && !saw_flame_) {
     saw_flame_ = true;
     drive_.DriveDist(0.5, drive_.leftdir(), 0.8, true);
     drive_.set_navigating(false);
     drive_.set_wall_follow(false);
-  } else if (saw_flame_ && drive_.drive_dist_done_()) {
+  } else if (saw_flame_ && drive_.drive_dist_done()) {
     Fan(true);
     // Check until flame goes out.
     if (!red_.flame()) {
       Fan(false);
-      drive.set_wall_side(true /*Follow on left*/);
+      drive_.set_wall_side(true /*Follow on left*/);
       flame_out_ = true;
-      num_legs_ = drive.get_path().size();
+      num_legs_ = drive_.get_path().size();
     }
   }
 }
