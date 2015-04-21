@@ -19,8 +19,10 @@ static const int kNumMotors = 4;
 static int motor_ports[kNumMotors] = {4, 5, 6, 7};
 // For inversions, remember that forward/right = non-inverted.
 static bool motor_inversions[kNumMotors] = {false, false, true, true};
-// TODO: flip wires for down encoders.
-//static int encoder_ports[kNumMotors * 2] = {2, 22, 3, 23, 18, 24, 19, 25};
+// Encoders.
+// Note: To use quadrature encoders, uncomment first line. To just use as single
+// encoders, use second line.
+// static int encoder_ports[kNumMotors * 2] = {2, 22, 3, 23, 18, 24, 19, 25};
 static int encoder_ports[kNumMotors * 2] = {2, 2, 3, 3, 18, 18, 19, 19};
 
 // Turret

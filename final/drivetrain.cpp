@@ -16,7 +16,9 @@ Drivetrain::Drivetrain(int motors[kNumMotors], bool inverted[kNumMotors],
       wall_follow_(false),
       navigating_(false),
       uturn_(false),
+      wall_on_left_(false),
       drive_dist_(-1),
+      drive_dist_done_(true),
       lcd_(40, 41, 42, 43, 44, 45) {  // TODO: Break out range port definition.
   fmotor_.attach(motors[0], 1000, 2000);
   lmotor_.attach(motors[1], 1000, 2000);
@@ -114,19 +116,19 @@ void Drivetrain::Run() {
         cliff_.on_line((CliffDetector::RobotSide)dir_)) {
       Serial.print("\nOh no! Running into wall:\t");
       Serial.println(AvgRangeError(dir_));
-      DriveDirection(leftdir(), power_);
+      DriveDirection(tabledir(), power_);
     }
     // Check if we have reached the end of a wall and should uturn.
-    else if (AvgRangeError(rightdir()) < -0.10 /*Tune*/ && !uturn_) {
+    else if (AvgRangeError(walldir()) < -0.10 /*Tune*/ && !uturn_) {
       Serial.print("\nPAST wall. Distance to wall:\t");
-      Serial.println(AvgRangeError(rightdir()));
+      Serial.println(AvgRangeError(walldir()));
       uturn_ = true;
       uturn_state_ = kForward;
       set_wall_follow(false);
       double cur_dist = ((int)dir_ % 2) ? pos_.x : pos_.y;
       DriveDist(0.4 + cur_dist /*tune*/, dir_, power_, false);
     }
-    else if (AvgRangeError(rightdir()) > -0.00 /*Tune*/ && uturn_) {
+    else if (AvgRangeError(walldir()) > -0.00 /*Tune*/ && uturn_) {
       uturn_ = false;
       set_wall_follow(true);
       DriveDirection(dir_, power_);
@@ -141,28 +143,29 @@ void Drivetrain::Run() {
           break;
         case kSide:
           uturn_state_ = kBack;
-          DriveDist(0.6/*tune*/, rightdir(), power_, false);
+          DriveDist(0.6/*tune*/, walldir(), power_, false);
           break;
         case kForward:
           uturn_state_ = kSide;
-          DriveDist(0.5/*tune*/, rightdir(), power_, false);
+          DriveDist(0.5/*tune*/, walldir(), power_, false);
           break;
       }
     }
   }
 
   // Handle drive_dist stuff.
-  bool drive_dist_done = false;
   if (drive_dist_ > 0) {
     Serial.print(pos_.x);
     Serial.print("\t");
     Serial.println(pos_.y);
     // Check if we are going up/down or right/left.
     if ((int)dir_ % 2) {  // side-to-side
-      if (pos_.x > drive_dist_) drive_dist_done = true;
+      if (pos_.x > drive_dist_) drive_dist_done_ = true;
+      else drive_dist_done_ = false;
     }
     else {
-      if (pos_.y > drive_dist_) drive_dist_done = true;
+      if (pos_.y > drive_dist_) drive_dist_done_ = true;
+      else drive_dist_done_ = false;
     }
   }
   if (drive_dist_done) Stop(!stop_drive_dist_);
@@ -264,8 +267,8 @@ void Drivetrain::UpdateMotors() {
   // Handle wall following.
   // Always use line following sensor to right of current direction.
   // RangeError() returns negative if we are too far away.
-  float rangepower =  - kPrange * RangeError(rightdir()) * 100;
-  if (cliff_.on_line((CliffDetector::RobotSide)rightdir())) rangepower = -50;
+  float rangepower =  - kPrange * RangeError(walldir()) * 100;
+  if (cliff_.on_line((CliffDetector::RobotSide)walldir())) rangepower = -50;
   rangepower = wall_follow_ ? rangepower : 0;
   lcd_.clear();
   lcd_.print(rangepower);
@@ -315,6 +318,7 @@ void Drivetrain::DriveDirection(Direction heading, float power) {
 }
 
 void Drivetrain::DriveDist(float distance, Direction heading, float power, bool stop) {
+  drive_dist_done_ = false;
   stop_drive_dist_ = stop;
   Serial.println("Driving Dist.");
   DriveDirection(heading, power);

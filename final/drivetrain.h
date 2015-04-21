@@ -68,6 +68,7 @@ class Drivetrain : public Loop {
 
   void set_wall_follow(bool wall_follow) { wall_follow_ = wall_follow; }
   void set_navigating(bool navigate) { navigating_ = navigate; }
+  void set_wall_side(bool wall_on_left) { wall_on_left_ = wall_on_left; }
 
   float RangeError(Direction sensor_sel) {
     return kWallDist - range_[(int)sensor_sel].Dist();
@@ -100,6 +101,12 @@ class Drivetrain : public Loop {
   Direction rightdir() { return (Direction)(((int)dir_ + 3) % 4); }
   // direction to left of current one.
   Direction leftdir() { return (Direction)(((int)dir_ + 1) % 4); }
+  // direction in which we can find the wall we are following.
+  Direction walldir() { return wall_on_left_ ? leftdir() : rightdir(); }
+  // Direction opposite walldir
+  Direction tabledir() { return wall_on_left_ ? rightdir() : leftdir(); }
+
+  bool drive_dist_done() { return drive_dist_done_; }
 
  private:
   const float kTicksToMeters = 2.0 * PI / 360.0 /* ticks to radians */
@@ -149,6 +156,9 @@ class Drivetrain : public Loop {
   bool uturn_; // Whether we are currently in a u-turn.
   float drive_dist_; // If negative, no limit on distance to drive.
   bool stop_drive_dist_;
+  bool drive_dist_done_;  // False if current running drive_dist and not done;
+                          // true otherwise.
+  bool wall_on_left_; // True if the wall is to our left. Default to false.
   enum {
     kForward,
     kSide,
