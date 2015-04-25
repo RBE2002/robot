@@ -26,10 +26,10 @@ void setup() {
   Serial.println("Beginning Gyro Calibration!");
   drive->imu_.CalibrateGyro();
   Serial.println("Calibrated Gyro.");
-  drive->set_wall_follow(false);
-  drive->set_navigating(false);
+  drive->set_wall_follow(true);
+  drive->set_navigating(true);
 
-  drive->DriveDist(0.5, Drivetrain::kUp, 0.5);
+  drive->DriveDirection(/*0.5, */Drivetrain::kUp, 0.5);
   start = millis();
 }
 

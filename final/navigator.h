@@ -19,21 +19,19 @@ class Navigator : public Loop {
     Loop::Update();
     drive_.Update();
     // TODO: uncomment turret.
-    //turret_.Update();
+    turret_.Update();
     red_.Update();
     black_.Update();
   }
   void Run();
   template <typename T>
-  void print(T stuff) {
-    drive_.print(stuff);
+  void print(T stuff, char * line2="") {
+    drive_.print(stuff, line2);
   }
  private:
   // Used for conversion fropm degrees to tilt servo values. See Tilt().
   const float kTiltSlope = -1.6;
   const int kTiltOffset = 100;
-  bool flame_out_;
-  int num_legs_; // Number of legs in path.
 
   void UpdateTurret();
   // Tilts to certain degrees (0 = fan is straight up; + = fan towards sky).
@@ -57,6 +55,8 @@ class Navigator : public Loop {
   // State variables
   bool walling_; // Whether we are currently navigating around the walls.
   bool saw_flame_;
+  bool flame_out_;
+  int num_legs_; // Number of legs in path.
 };
 
 #endif  // __NAVIGATOR_H__

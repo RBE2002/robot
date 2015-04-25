@@ -19,7 +19,10 @@ void ServoDeg(int deg) {
 void setup() {
   Serial.begin(115200);
   servo.attach(servoport, 1000, 2000);
-  ServoDeg(angle);
+  ServoDeg(45);
+  delay(5000);
+  ServoDeg(0);
+  while (true) continue;
 }
 
 void loop() {

@@ -21,8 +21,9 @@ class Range : public Loop {
     avg_ = 0.15;
   }
 
-  void init(int port) {
+  void init(int port, Type type=kSharp) {
     port_ = port;
+    type_ = type;
   }
 
   float Dist() { // meters
@@ -40,7 +41,7 @@ class Range : public Loop {
       hist_[i] = newval;
       avg += newval;
     }
-    dist_ = SharpDist();
+    dist_ = (type_ == kSharp) ? SharpDist() : MaxDist();
     hist_[0] = dist_;
     avg += dist_;
     avg_ = avg / (float)kHistLen;
@@ -65,6 +66,13 @@ class Range : public Loop {
       first_ = false;
     }
     return retval;
+  }
+
+  // For maxbotic sonar sensor.
+  float MaxDist() {
+    int raw = analogRead(port_);
+    const float kAnalogToDist = 0.01266;
+    return kAnalogToDist * (float)raw;
   }
 
   int port_;

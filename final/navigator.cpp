@@ -4,13 +4,14 @@
 Navigator::Navigator()
     : Loop(1e4 /*100Hz*/),
       drive_(motor_ports, motor_inversions, encoder_ports, range_ports),
-      turret_(turret_motor, turret_pot, 0.9, 0.01, 0.0),  // TODO: Tune
+      turret_(turret_motor, turret_pot, 0.9, 0.03, 0.0),  // TODO: Tune
       red_(red_port),
       black_(black_port),
       walling_(true),
-      saw_flame_(false) {
+      saw_flame_(false),
+      flame_out_(false) {
   fantilt_.attach(tilt_port);
-  Tilt(-20);
+  Tilt(20);
   drive_.Stop();
   Serial.println("Calibrating Gyro...");
   print("Calibrating...");
@@ -18,6 +19,7 @@ Navigator::Navigator()
   Serial.println("Done Calibrating Gyro.");
   print("Done Calibrating");
   pinMode(fan_port, OUTPUT);
+  turret_.set_deg(0);
 }
 
 void Navigator::Start() {
@@ -35,17 +37,23 @@ void Navigator::Run() {
     }
   } else if (red_.flame() && !saw_flame_) {
     saw_flame_ = true;
-    drive_.DriveDist(0.5, drive_.leftdir(), 0.8, true);
+    drive_.Stop(true);//DriveDist(0.5, drive_.leftdir(), 0.8, true);
     drive_.set_navigating(false);
     drive_.set_wall_follow(false);
-  } else if (saw_flame_ && drive_.drive_dist_done()) {
+  } else if (saw_flame_) {// && drive_.drive_dist_done()) {
     Fan(true);
+    drive_.Stop(true);
     // Check until flame goes out.
     if (!red_.flame()) {
       Fan(false);
+      drive_.set_navigating(true);
+      drive_.set_wall_follow(true);
       drive_.set_wall_side(true /*Follow on left*/);
+      drive_.DriveDirection(
+          (Drivetrain::Direction)(((int)drive_.dir() + 2) % 4), 0.8);
       flame_out_ = true;
       num_legs_ = drive_.get_path().size();
+      walling_ = false;
     }
   }
 }
@@ -54,7 +62,7 @@ void Navigator::Run() {
 // direction of travel while wall following.
 void Navigator::UpdateTurret() {
   if (walling_) {
-    int goal = (int)drive_.rightdir() * 90;
+    int goal = (int)drive_.tabledir() * 90;
     turret_.set_deg(goal);
   }
 }

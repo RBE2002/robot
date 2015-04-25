@@ -25,6 +25,7 @@ class CliffDetector : public Loop {
       : kCutoff(cutoff), Loop(1e4 /* 100Hz */) {
         for (int i = 0; i < kNumMotors; i++) {
           ports_[i] = ports[i];
+          last_on_[i] = 1000;
         }
   }
 
@@ -32,6 +33,7 @@ class CliffDetector : public Loop {
   int on_line() { return linemask_; }
   // Returns if we are over the corresponding line.
   int on_line(RobotSide side) { return linemask_ & (0x01 << side); }
+  int last_on_line(RobotSide side) { return last_on_[(int)side]; }
 
   // Run function; called very iteration of main arduino loop.
   void Run() {
@@ -39,9 +41,14 @@ class CliffDetector : public Loop {
     for (int i = 0; i < kNumMotors; i++) {
       // Read sensor and determine whether or not we are over a line.
       int sensor = analogRead(ports_[i]);
-      if (sensor > kCutoff /*over line*/) linemask_ |= 0x01 << i;
+      if (sensor > kCutoff /*over line*/) {
+        linemask_ |= 0x01 << i;
+        last_on_[i] = 0;
+      }
+      else {
+        last_on_[i] += 1;
+      }
     }
-    return;
   }
 
  private:
@@ -52,5 +59,6 @@ class CliffDetector : public Loop {
 
   // Analog In ports of sensors.
   int ports_[kNumMotors];
+  unsigned long last_on_[kNumMotors];// How many iterations ago we saw a line.
 };
 #endif  // __CLIFFDETECTOR_H__

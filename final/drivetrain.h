@@ -83,13 +83,16 @@ class Drivetrain : public Loop {
   void Update() {
     Loop::Update();
     imu_.Update();
+    cliff_.Update();
     for (int i = 0; i < kNumMotors; i++) range_[i].Update();
   }
 
   template <typename T>
-  void print(T stuff) {
+  void print(T stuff, char * line2="") {
     lcd_.clear();
     lcd_.print(stuff);
+    lcd_.setCursor(0, 1);
+    lcd_.print(line2);
   }
 
   IMU imu_;
@@ -113,7 +116,7 @@ class Drivetrain : public Loop {
                                * 0.035 /* radius of wheels, in m */;
   const float kRobotRadius = 0.1; // Radius of robot.
   const float kPangle = 200, kPrate = 0, kPrange = 10;
-  const float kWallDist = 0.15;
+  const float kWallDist = 0.18;
 
   // Velocity threshold at which we consider things stopped.
   const float kMinVel = 0.01;
@@ -159,6 +162,7 @@ class Drivetrain : public Loop {
   bool drive_dist_done_;  // False if current running drive_dist and not done;
                           // true otherwise.
   bool wall_on_left_; // True if the wall is to our left. Default to false.
+  unsigned long stop_end_;
   enum {
     kForward,
     kSide,

@@ -49,7 +49,7 @@ class TurretPID : public Loop {
   void set_deg(int deg) {
     if (deg > kMaxDeg) deg -= 360;
     else if (deg < kMinDeg) deg += 360;
-    if(deg > 135 && deg < 180) deg = 180;
+    if(deg > 135 && deg < 180) deg = -180;
     else if (deg > 90 && deg < 135) deg = 90;
     set_setpoint(deg * kDegSlope + kDegOffset);
   }
@@ -62,8 +62,12 @@ class TurretPID : public Loop {
   // Set the desired setpoint.
   void set_setpoint(int setpoint) {
     if (setpoint == setpoint_) return;
+    Serial.print("\nGoal: ");
+    Serial.println(setpoint);
     sum_ = 0;
-    setpoint_ = setpoint;
+    setpoint_ = (setpoint < kMinPot)
+                    ? kMinPot
+                    : ((setpoint > kMaxPot) ? kMaxPot : setpoint);
   }
 
   int get_setpoint() { return setpoint_; }
@@ -74,9 +78,10 @@ class TurretPID : public Loop {
 
  private:
   // TODO: Tune
-  const float kDegSlope = 720/270;
-  const int kDegOffset = 506;
+  const float kDegSlope = 600.0/270.0;
+  const int kDegOffset = 620;
   const int kMaxDeg = 179, kMinDeg = -180;
+  const int kMaxPot = 750, kMinPot = 150;
   // Performs the PID calculations, using the current setpoint and reading from
   // the ADC to calculate a value in units of the Servo::write function,
   // although it will be centered on zero and may be inverted.
