@@ -13,12 +13,18 @@ class FlameRed : public Loop {
 
   bool flame() { return flame_; }
 
-  void Run() { flame_ = analogRead(port_) < kCutoff; }
+  int raw() { return raw_; }
+
+  void Run() {
+    raw_ = analogRead(port_);
+    flame_ = raw_ < kCutoff;
+  }
 
  private:
   const int kCutoff = 400; // Cutoff--below=sees flame, above = doesn't.
   bool flame_;
   char port_;
+  int raw_;
 };
 
 #endif  // __FLAMERED_H__

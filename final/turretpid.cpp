@@ -29,5 +29,13 @@ int TurretPID::Calc() {
   if (potval > kMaxPot || potval < kMinPot) {
     return 0;
   }
+  if (!digitalRead(max_limit_) &&
+      retval > 0) {  // We are running into the upper limit.
+    return 0;
+  }
+  if (!digitalRead(min_limit_) &&
+      retval < 0) {  // We are running into the lower limit.
+    return 0;
+  }
   return retval;
 }

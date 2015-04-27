@@ -28,6 +28,8 @@ static int encoder_ports[kNumMotors * 2] = {2, 2, 3, 3, 18, 18, 19, 19};
 // Turret
 static int turret_motor = 8;
 static int turret_pot = 9;
+static int turret_min = 26;
+static int turret_max = 27;
 
 // Fan & Tilt
 static int fan_port = 29; // digital

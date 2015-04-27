@@ -19,7 +19,8 @@ class Navigator : public Loop {
     Loop::Update();
     drive_.Update();
     // TODO: uncomment turret.
-    turret_.Update();
+    // Only run when we are navigating TO flame.
+    if (!saw_flame_) turret_.Update();
     red_.Update();
     black_.Update();
   }
@@ -56,7 +57,16 @@ class Navigator : public Loop {
   bool walling_; // Whether we are currently navigating around the walls.
   bool saw_flame_;
   bool flame_out_;
+  bool at_flame_;
+  bool flame_z_;
   int num_legs_; // Number of legs in path.
+  unsigned long flame_done_; // How long to wait after fan turns off to check flame.
+  unsigned long fan_done_; // How long to wait after flame goes to turn of fan.
+  int final_dir_;
+  int lowest_z_servo_ /*Tilt angle with lowest flame return*/;
+  int cur_z_servo_;
+  int highest_flame_; // Most powerful detected flame value.
+  unsigned long next_inc_z_;
 };
 
 #endif  // __NAVIGATOR_H__

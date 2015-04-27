@@ -7,6 +7,7 @@
 #include <Servo.h>
 #include "Arduino.h"
 #include "loop.h"
+#include "constants.h"
 
 /**
  * This class inherits from Loop, which just causes the Run function to be
@@ -30,8 +31,12 @@ class TurretPID : public Loop {
         prev_error_(0),
         sum_(0),
         setpoint_(0),
+        max_limit_(turret_max),
+        min_limit_(turret_min),
         Loop(1e4 /*10000us => 100 Hz*/) {
     motor_.attach(motor, 1000, 2000);
+    pinMode(max_limit_, INPUT_PULLUP);
+    pinMode(min_limit_, INPUT_PULLUP);
   }
 
   // Set all of the PID values.
@@ -76,12 +81,14 @@ class TurretPID : public Loop {
   // Actually performs PID calculation and writes it to the motor.
   void Run() { motor_.write(OutToRaw(Calc())); }
 
+  void Stop() { motor_.write(90); }
+
  private:
   // TODO: Tune
-  const float kDegSlope = 600.0/270.0;
+  const float kDegSlope = 720.0/270.0;
   const int kDegOffset = 620;
   const int kMaxDeg = 179, kMinDeg = -180;
-  const int kMaxPot = 750, kMinPot = 150;
+  const int kMaxPot = 850, kMinPot = 150;
   // Performs the PID calculations, using the current setpoint and reading from
   // the ADC to calculate a value in units of the Servo::write function,
   // although it will be centered on zero and may be inverted.
@@ -101,6 +108,7 @@ class TurretPID : public Loop {
   float p_, i_, d_;
   // Analog In port of pot.
   uint8_t pot_;
+  int max_limit_, min_limit_; // Ports of limit sensors.
   // Servo object for motor.
   Servo motor_;
 };

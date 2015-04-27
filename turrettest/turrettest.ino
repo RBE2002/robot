@@ -32,7 +32,7 @@ void loop() {
   if (start + 5000 < millis()) {
     start = millis();
     ccw = !ccw;
-    turret->set_deg(ccw ? 90 : 270);
+    turret->set_deg(ccw ? 180 : 270);
     Serial.println("Switching");
   }
   turret->Update();

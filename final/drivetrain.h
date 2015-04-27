@@ -116,7 +116,7 @@ class Drivetrain : public Loop {
                                * 0.035 /* radius of wheels, in m */;
   const float kRobotRadius = 0.1; // Radius of robot.
   const float kPangle = 200, kPrate = 0, kPrange = 10;
-  const float kWallDist = 0.18;
+  const float kWallDist = 0.2;
 
   // Velocity threshold at which we consider things stopped.
   const float kMinVel = 0.01;
@@ -145,6 +145,7 @@ class Drivetrain : public Loop {
   Vector pos_;
   // abs_pos_ is not zeroed on every change.
   Vector abs_pos_;
+  Vector fin_pos_;
 
   // Microseconds
   unsigned long prev_time_;

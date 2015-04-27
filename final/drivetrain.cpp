@@ -105,7 +105,7 @@ void Drivetrain::Run() {
       Record leg;
       // Based on which coordinate we moved more in, determine which direction
       // we used to be going and add that distance to the total path.
-      leg.dist = (pos_.y > pos_.x) ? pos_.y : pos_.x;
+      leg.dist = (abs(pos_.y) > abs(pos_.x)) ? pos_.y : pos_.x;
       leg.dist = abs(leg.dist);
       leg.heading = (pos_.y > pos_.x) ? // Determine Up/Down vs. Left/Right.
                     ((vel_.y > 0) ? kUp : kDown) : // Determine Up vs. Down.
@@ -119,28 +119,32 @@ void Drivetrain::Run() {
 
   // Determine whether we have hit a wall/edge and need to change our motion.
   if (navigating_) {
+    double cur_dist = ((int)dir_ % 2) ? pos_.x : pos_.y;
     // First, check for if we are about to hit a wall.
     if (AvgRangeError(dir_) >
-        -0.04 /*Tune so that inertia doesn't make us hit the wall*/ ||
+        -0.06 /*Tune so that inertia doesn't make us hit the wall*/ ||
         cliff_.on_line((CliffDetector::RobotSide)dir_)) {
       Serial.print("\nOh no! Running into wall:\t");
       Serial.println(AvgRangeError(dir_));
       DriveDirection(tabledir(), power_);
     }
     // Check if we have reached the end of a wall and should uturn.
-    else if (AvgRangeError(walldir()) < -0.05 /*Tune*/ && !uturn_) {
+    else if (AvgRangeError(walldir()) < -0.1 /*Tune*/ && !uturn_) {
       Serial.print("\nPAST wall. Distance to wall:\t");
       Serial.println(AvgRangeError(walldir()));
       uturn_ = true;
       uturn_state_ = kForward;
       set_wall_follow(false);
-      double cur_dist = ((int)dir_ % 2) ? pos_.x : pos_.y;
-      DriveDist(0.4 + cur_dist /*tune*/, dir_, power_, false);
+      double dist = 0.2;
+      if (cliff_.last_on_line((CliffDetector::RobotSide)walldir()) < 10)
+        dist = 0.6;
+      DriveDist(dist + cur_dist /*tune*/, dir_, power_, false);
     }
+    // Keep going if we still see the wall.
     else if (AvgRangeError(walldir()) > -0.00 /*Tune*/ && uturn_) {
-      uturn_ = false;
-      set_wall_follow(true);
-      DriveDirection(dir_, power_);
+      double dist = 0.4;
+      if (walldir() == kLeft) dist = 0.2;
+      DriveDist(dist + cur_dist, dir_, power_, false);
     }
     // Check if we are in a uturn and need to change direction.
     else if (uturn_ && drive_dist_ < 0) {
@@ -152,11 +156,11 @@ void Drivetrain::Run() {
           break;
         case kSide:
           uturn_state_ = kBack;
-          DriveDist(0.6/*tune*/, walldir(), power_, false);
+          DriveDist(0.5/*tune*/, walldir(), power_, false);
           break;
         case kForward:
           uturn_state_ = kSide;
-          DriveDist(0.5/*tune*/, walldir(), power_, false);
+          DriveDist(0.3/*tune*/, walldir(), power_, false);
           break;
       }
     }
@@ -237,15 +241,18 @@ void Drivetrain::UpdateEncoders() {
   // or right (using the modulo 3).
   abs_pos_.x += vel_.x * dt * (((int)dir_ % 3) ? -1 : 1);
   abs_pos_.y += vel_.y * dt * (((int)dir_ % 3) ? -1 : 1);
+  if (!wall_on_left_) {
+    fin_pos_ = abs_pos_;
+  }
   char outstr[120], line2[120], tempx[6], tempy[6];
   const float kMeterstoIn = 39.37;
-  dtostrf(abs_pos_.x * kMeterstoIn, 4, 1, tempx);
-  dtostrf(abs_pos_.y * kMeterstoIn, 4, 1, tempy);
+  // Arduino doesn't support the %f modifier...
+  dtostrf(fin_pos_.x * kMeterstoIn, 4, 1, tempx);
+  dtostrf(fin_pos_.y * kMeterstoIn, 4, 1, tempy);
   sprintf(outstr, "X: %s Y: %s", tempx, tempy);
   Serial.println(outstr);
-  sprintf(line2, "%3d %3d %3d %3d", path_.size(),
-          (int)(AvgRangeError(kLeft) * 100), (int)(AvgRangeError(kDown) * 100),
-          (int)(AvgRangeError(kRight) * 100));
+  sprintf(line2, "%s Z: %3d %2d", wall_on_left_ ? "Out" : "On!",
+          10, cliff_.last_on_line((CliffDetector::RobotSide)walldir()));
   print(outstr, line2);
   abs_pos_.theta += vel_.theta * dt;
   imu_.set_est_rate(vel_.theta);
@@ -293,8 +300,8 @@ void Drivetrain::UpdateMotors() {
   // RangeError() returns negative if we are too far away.
   float rangepower =  - kPrange * RangeError(walldir()) * 100;
   if (wall_on_left_) rangepower *= -1;
-  if (cliff_.last_on_line((CliffDetector::RobotSide)walldir()) < 150) rangepower = -50;
   rangepower = wall_follow_ ? rangepower : 0;
+  if (cliff_.last_on_line((CliffDetector::RobotSide)walldir()) < 40) rangepower = -50;
   if (stopping_) {
     rightpower = 0;
     leftpower = 0;

@@ -71,7 +71,7 @@ class Range : public Loop {
   // For maxbotic sonar sensor.
   float MaxDist() {
     int raw = analogRead(port_);
-    const float kAnalogToDist = 0.01266;
+    const float kAnalogToDist = 0.01266 * 1.5;
     return kAnalogToDist * (float)raw;
   }
 
