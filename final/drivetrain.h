@@ -28,14 +28,21 @@ class Drivetrain : public Loop {
     kRight=3,
     kStop,
   };
-
+/**
+  * Vector is a struct used to calculate and record our heading
+  * Its parameters are X and Y distances combined with an angle.
+  */ 
   struct Vector {
     Vector() : x(0), y(0), theta(0) {}
     double x; // Left/Right
     double y; // Up/Down
     double theta;
   };
-
+  
+/**
+  * Record keeps track of our distances, used for returning
+  * after the fire is extinguished.
+  */
   struct Record {
     Direction heading;
     double dist; // meters.
@@ -70,16 +77,27 @@ class Drivetrain : public Loop {
   void set_navigating(bool navigate) { navigating_ = navigate; }
   void set_wall_side(bool wall_on_left) { wall_on_left_ = wall_on_left; }
 
+/**
+  * Calculates the range error when given the sensor
+  */
   float RangeError(Direction sensor_sel) {
     return kWallDist - range_[(int)sensor_sel].Dist();
   }
-
+  
+/**
+  * Averages out the error from the wall following sensor
+  * to stay more accurate.
+  */
   float AvgRangeError(Direction sensor_sel) {
     float avg = range_[(int)sensor_sel].Avg();
     float err = kWallDist - avg;
     return err;
   }
 
+/**
+  * Updates the cliff sensors and imu
+  * To be run in loop
+  */
   void Update() {
     Loop::Update();
     imu_.Update();
@@ -87,6 +105,10 @@ class Drivetrain : public Loop {
     for (int i = 0; i < kNumMotors; i++) range_[i].Update();
   }
 
+/**
+  * This function prints the required lines on the LCD
+  * The LCD Prints out both status and coordinates
+  */
   template <typename T>
   void print(T stuff, char * line2="") {
     lcd_.clear();
@@ -131,34 +153,35 @@ class Drivetrain : public Loop {
   void UpdateEncoders();
   void UpdateMotors();
 
-  Servo fmotor_, lmotor_, bmotor_, rmotor_;
-  bool finv_, linv_, binv_, rinv_;
-  Encoder fenc_, lenc_, benc_, renc_;
+  Servo fmotor_, lmotor_, bmotor_, rmotor_; //declares all the motors
+  bool finv_, linv_, binv_, rinv_; //inversions for if the motors are installed in reverse
+  Encoder fenc_, lenc_, benc_, renc_; //declares all the Encoders for later ease
   // Range sensors; in order, they are the sensors pointing forwards, left,
   // back, and right.
   Range range_[kNumMotors];
-  CliffDetector cliff_;
+  CliffDetector cliff_; //this variable represents the state of all the line sensors
 
   // All in meters or meters/sec.
   float prev_enc_[kNumMotors];
   float enc_[kNumMotors];
   float enc_vel_[kNumMotors];
   // Unfiltered state. IMU will do the filtering.
-  Vector vel_;
+  Vector vel_; //stores the velocity
   // pos_ is rezeroed with every new direction order.
-  Vector pos_;
+  Vector pos_; //stores the position
   // abs_pos_ is not zeroed on every change.
-  Vector abs_pos_;
-  Vector fin_pos_;
+  Vector abs_pos_; //the summed position
+  Vector fin_pos_; //the final position
 
   // Microseconds
-  unsigned long prev_time_;
-  unsigned long time_;
-
-  Direction dir_;
+  unsigned long prev_time_; //a previous time for taking averages and derivatives
+  unsigned long time_; //storing the current time in micros
+  
+  // Variables
+  Direction dir_; // Stores the direction of travel
   bool stopping_; // True if in process of stopping.
   double power_; // Power with which we are running the motors, 0.0 - 1.0;
-  vector::Vector<Record> path_;
+  vector::Vector<Record> path_; //records the path we hve straveled
   bool wall_follow_; // Whether, at this instant, we are wall following.
   bool navigating_; // Whether we will continue wall following after this move.
   bool uturn_; // Whether we are currently in a u-turn.
@@ -170,8 +193,8 @@ class Drivetrain : public Loop {
   bool wall_on_left_; // True if the wall is to our left. Default to false.
   unsigned long stop_end_;
   double z_pos_; // Height of candle to print on screen.
-  enum {
-    kForward,
+  enum { //this enum stores the variables required for our u-turns
+    kForward, 
     kSide,
     kBack
   } uturn_state_; // Which leg of the uturn we are in.
