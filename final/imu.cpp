@@ -38,6 +38,10 @@ IMU::IMU()
 
 }
 
+/**
+  * Takes time to set the basic gyro heading regardless of initial direction to forward
+  * Runs at start of robot before the otehr processes start
+  */
 void IMU::CalibrateGyro() {
   //sets the origin of the gyro at the front
   gyro_zero_ = 0;
@@ -52,17 +56,28 @@ void IMU::CalibrateGyro() {
 }
 
 // Called at 100Hz by the Loop stuff.
+/**
+  * The basic process to be continuously called in loop for running and managing the imu interactions
+  *
+  */
 void IMU::Run() {
+  //count time in microseconds for calculation of rates
   time_ = micros();
+  //reads the gyro and stores its information
   gyro_.read();
+  //reads the compass and stores the information
   compass_.read();
-
+  //finds rate of change of compass and updates the last_compass_heading_ variable
   UpdateCompass();
   Filter();
-
+  //stores the time so that the function has previous values to calculate rates of change
   last_time_ = time_;
 }
 
+/**
+  * Checks for various conditions which my indicate compass inaccuracies
+  *
+  */  
 bool IMU::RejectCompass() {
   return true;
   // If any of various conditions occur, then it will reject.
@@ -86,12 +101,18 @@ bool IMU::RejectCompass() {
   return false;
 }
 
+
+/**
+  * Updates various compass values. Run once every cycle of IMU Run
+  *
+  */
 bool IMU::UpdateCompass() {
+  //if the compass heading has not changed
   if (compass_.heading() == last_compass_heading_) return false;
-
+  //calculate the compass rate of change
   compass_rate_ =
-      (compass_.heading() - last_compass_heading_) / (time_ - last_time_) * 1e6;
-
+      (compass_.heading() - last_compass_heading_) / (time_ - last_time_) * 1e6; //simple calculation, change in direction over change in time
+  //store the current compass heading for later calculation
   last_compass_heading_ = compass_.heading();
   return true;
 }
