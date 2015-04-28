@@ -12,17 +12,19 @@
 class Navigator : public Loop {
  public:
   Navigator();
-
+  
+  //starts the navigator code
   void Start();
 
+  //calls an update on all sensors related to navigation
   void Update() {
-    Loop::Update();
-    drive_.Update();
+    Loop::Update(); //calls the update funcition in loop
+    drive_.Update(); //calls an update on the drivetrain operations
     // TODO: uncomment turret.
     // Only run when we are navigating TO flame.
-    if (!saw_flame_) turret_.Update();
-    red_.Update();
-    black_.Update();
+    if (!saw_flame_) turret_.Update(); //turns the turret if a flame is not seen
+    red_.Update(); //update the red flame sensor
+    black_.Update(); //update the black flame sensor
   }
   void Run();
   template <typename T>
@@ -34,7 +36,9 @@ class Navigator : public Loop {
   const float kTiltSlope = -1.6;
   const int kTiltOffset = 100;
 
+  // Updates the turret informaton and keeps he turret turning to see
   void UpdateTurret();
+  
   // Tilts to certain degrees (0 = fan is straight up; + = fan towards sky).
   void Tilt(int deg) {
     int out = deg * kTiltSlope + kTiltOffset;

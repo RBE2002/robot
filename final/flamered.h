@@ -15,10 +15,22 @@ class FlameRed : public Loop {
 
   void init(char port) { port_ = port; }
 
+/**
+  * Returns a boolean of the state of the flame
+  * True = flame on False = flame off
+  */
   bool flame() { return flame_; }
 
+/**
+  * Returns the raw sensor values 
+  */
   int raw() { return raw_; }
 
+
+/**
+  * Sets the variables and calculates them
+  * To be run in Loop
+  */
   void Run() {
     raw_ = analogRead(port_);
     flame_ = raw_ < kCutoff;
@@ -26,9 +38,9 @@ class FlameRed : public Loop {
 
  private:
   const int kCutoff = 400; // Cutoff--below=sees flame, above = doesn't.
-  bool flame_;
-  char port_;
-  int raw_;
+  bool flame_; //whether or not a flam exists/ is seen
+  char port_; //the port of the red sensor
+  int raw_; //the raw sensor value to be later interpereted
 };
 
 #endif  // __FLAMERED_H__

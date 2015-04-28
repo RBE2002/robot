@@ -26,7 +26,9 @@ int TurretPID::Calc() {
   Serial.print("\tOut:\t");
   Serial.println(retval);
 //#endif  // DEBUG
-  if (potval > kMaxPot || potval < kMinPot) {
+
+  //checks for problems with the potentiometer values
+  if (potval > kMaxPot || potval < kMinPot) { //if the potentiometer has been overturned
     return 0;
   }
   if (!digitalRead(max_limit_) &&
@@ -37,5 +39,5 @@ int TurretPID::Calc() {
       retval < 0) {  // We are running into the lower limit.
     return 0;
   }
-  return retval;
+  return retval; //return the pid controlled errors to be used for turret corrections
 }

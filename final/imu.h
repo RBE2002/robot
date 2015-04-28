@@ -10,10 +10,12 @@
 #include "loop.h"
 
 // All values in radians, seconds, or radians/sec.
-// This handles averaging the compass and gyro information.
-// It will consider rejecting a compass reading if the compass and gyro deviate
-// by too much or if the compass deviates too far from an estimate sent in by
-// the user (eg, from the encoders or the such).
+/**
+  * This handles averaging the compass and gyro information.
+  * It will consider rejecting a compass reading if the compass and gyro deviate
+  * by too much or if the compass deviates too far from an estimate sent in by
+  * the user (eg, from the encoders or the such).
+  */
 class IMU : public Loop {
  public:
   enum CompassResolution {
@@ -25,6 +27,7 @@ class IMU : public Loop {
 
   IMU();
 
+  //calibrates the gyro with origin at the front face of the robot
   void CalibrateGyro();
 
   // Returns true if the compass is returning too crazy of values to use.

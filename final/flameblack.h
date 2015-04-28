@@ -13,28 +13,37 @@ class FlameBlack : public Loop {
       : Loop(1e4 /*100Hz*/), last_flame_(false), flame_(false) {
     init(port);
   }
-
+/**
+  * Initializes the flame sensor and sets the port
+  */
   void init(int port) { port_ = port; }
 
+/**
+  * Return the booleans representing the flame state now and previously
+  */
   bool flame() { return flame_ && last_flame_; }
 
   // REturns 0.0 - 1.0; 0 = no flame, 1 = sensor on fire (not really).
   double strength() { return strength_; }
 
+/**
+  * Updates all the variables relating to the flame sensor
+  * To be run in loop
+  */
   void Run() {
-    int raw = analogRead(port_);
-    last_flame_ = flame_;
-    flame_ = raw < kCutoff;
-    strength_ = (double)(raw - kMin) / (double)(kMax - kMin);
+    int raw = analogRead(port_); //raw sensor values to be calculated
+    last_flame_ = flame_; //stores the last raw value of the flame sensor
+    flame_ = raw < kCutoff; 
+    strength_ = (double)(raw - kMin) / (double)(kMax - kMin); //calculates the intensity of the flame
   }
 
  private:
   const int kCutoff = 230; // Cutoff--below=sees flame, above = doesn't.
   // Max = highest flaminess; Min = least flamy.
   const int kMax = 100, kMin = 900;
-  bool flame_;
+  bool flame_; // Boolean state of the flame. True = on false = off
   bool last_flame_; // Whether we saw the flame on the last iteratoin as well.
-  double strength_;
+  double strength_; //value which represents flame intensity and nearness to the flame
   int port_; //the port the flame sensor is plugged into
 };
 
