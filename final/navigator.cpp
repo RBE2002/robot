@@ -13,7 +13,12 @@ Navigator::Navigator()
       flame_out_(false),
       at_flame_(false),
       flame_z_(false),
-      flame_done_(0) {
+      lowest_z_servo_(0),
+      cur_z_servo_(20),
+      next_inc_z_(0),
+      highest_flame_(10000), /*inf*/
+      flame_done_(0),
+      fan_done_(0) {
   fantilt_.attach(tilt_port);
   Tilt(20);
   drive_.Stop();
@@ -27,7 +32,7 @@ Navigator::Navigator()
 }
 
 void Navigator::Start() {
-  Tilt(-5);
+  Tilt(-1);
   drive_.set_navigating(true);
   drive_.set_wall_follow(true);
   drive_.DriveDirection(Drivetrain::kUp, 0.8);
@@ -44,23 +49,21 @@ void Navigator::Run() {
       vector::Vector<Drivetrain::Record> path = drive_.get_path();
       drive_.DriveDist(path[1].dist, drive_.dir(), 0.8);
     }
-  } else if (red_.flame() && !saw_flame_) {
+  } else if (red_.flame() && !saw_flame_ && !drive_.stopping()) {
     saw_flame_ = true;
-    drive_.DriveDirection(drive_.tabledir(), 0.8);
     walling_ = false;
+    final_dir_ = (int)drive_.tabledir();
     drive_.set_navigating(false);
     drive_.set_wall_follow(false);
+    drive_.Stop(false);
     at_flame_ = false;
-  } else if (saw_flame_ && !at_flame_) {
-    if (red_.raw() < 240) {
+  } else if (flame_z_ && !at_flame_) {
+    if (red_.raw() < 200) {
       turret_.Stop();
-      final_dir_ = (int)drive_.dir();
       drive_.Stop();
       at_flame_ = true;
-      cur_z_servo_ = 20;
-      next_inc_z_ = 0;
     }
-  } else if (at_flame_ && !flame_z_) {
+  } else if (saw_flame_ && !flame_z_) {
     if (millis() > next_inc_z_) {
       cur_z_servo_ -= 1;
       next_inc_z_ = millis() + 100;
@@ -72,7 +75,10 @@ void Navigator::Run() {
     }
     if (cur_z_servo_ <= -20) {
       flame_z_ = true;
-      Tilt(lowest_z_servo_);
+      double height = ((double)lowest_z_servo_ / 5.0 + 10.0);
+      drive_.set_z(height);
+      Tilt(lowest_z_servo_ + 5/*Necessary offset b/c flame sensor is at top*/);
+      drive_.DriveDirection(drive_.tabledir(), 0.8);
     }
   } else if (at_flame_ && flame_z_) {
     Fan(true);
@@ -80,17 +86,15 @@ void Navigator::Run() {
     // Check until flame goes out and then wait a couple seconds.
     if (!red_.flame() && fan_done_ == 0) {
       fan_done_ = millis() + 5000;
-    }
-    else if (!red_.flame() && flame_done_ == 0) {
+    } else if (!red_.flame() && fan_done_ < millis() && flame_done_ == 0) {
       Fan(false);
       flame_done_ = millis() + 5000;
-    }
-    else if (red_.flame() && flame_done_ < millis()) {
+    } else if (red_.flame()) {
       flame_done_ = 0;
       fan_done_ = 0;
       Fan(true);
     }
-    else if (!red_.flame() && flame_done_ < millis()) {
+    else if (!red_.flame() && flame_done_ < millis() && fan_done_ < millis()) {
       Fan(false);
       drive_.set_navigating(true);
       drive_.set_wall_follow(true);

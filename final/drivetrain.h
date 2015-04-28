@@ -104,12 +104,16 @@ class Drivetrain : public Loop {
   Direction rightdir() { return (Direction)(((int)dir_ + 3) % 4); }
   // direction to left of current one.
   Direction leftdir() { return (Direction)(((int)dir_ + 1) % 4); }
+  // Direction to back of robot.
+  Direction backdir() { return (Direction)(((int)dir_ + 2) % 4); }
   // direction in which we can find the wall we are following.
   Direction walldir() { return wall_on_left_ ? leftdir() : rightdir(); }
   // Direction opposite walldir
   Direction tabledir() { return wall_on_left_ ? rightdir() : leftdir(); }
 
   bool drive_dist_done() { return drive_dist_done_; }
+  bool stopping() { return stopping_; }
+  void set_z(double z) { z_pos_ = z; }
 
  private:
   const float kTicksToMeters = 2.0 * PI / 360.0 /* ticks to radians */
@@ -162,8 +166,10 @@ class Drivetrain : public Loop {
   bool stop_drive_dist_;
   bool drive_dist_done_;  // False if current running drive_dist and not done;
                           // true otherwise.
+  bool by_line_; // True if we are current cliff following.
   bool wall_on_left_; // True if the wall is to our left. Default to false.
   unsigned long stop_end_;
+  double z_pos_; // Height of candle to print on screen.
   enum {
     kForward,
     kSide,

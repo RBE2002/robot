@@ -22,6 +22,8 @@ Drivetrain::Drivetrain(int motors[kNumMotors], bool inverted[kNumMotors],
       dir_(kUp),
       drive_dist_(-1),
       drive_dist_done_(true),
+      by_line_(false),
+      z_pos_(10),
       lcd_(40, 41, 42, 43, 44, 45) {  // TODO: Break out range port definition.
   fmotor_.attach(motors[0], 1000, 2000);
   lmotor_.attach(motors[1], 1000, 2000);
@@ -110,7 +112,8 @@ void Drivetrain::Run() {
       leg.heading = (pos_.y > pos_.x) ? // Determine Up/Down vs. Left/Right.
                     ((vel_.y > 0) ? kUp : kDown) : // Determine Up vs. Down.
                     ((vel_.x > 0) ? kRight : kDown); // Right vs. Left.
-      path_.push_back(leg);
+      // Reject any ultra-short paths as probably being the result of silliness
+      if (leg.dist > 0.1) path_.push_back(leg);
       pos_.x = 0;
       pos_.y = 0;
       pos_.theta = 0;
@@ -127,9 +130,17 @@ void Drivetrain::Run() {
       Serial.print("\nOh no! Running into wall:\t");
       Serial.println(AvgRangeError(dir_));
       DriveDirection(tabledir(), power_);
+      if (cliff_.on_line((CliffDetector::RobotSide)dir_)) by_line_ = true;
+    }
+    // Check if we were following a cliff and have now reached a wall again.
+    else if ((cliff_.last_on_line((CliffDetector::RobotSide)walldir()) > 300 ||
+              (cliff_.last_on_line((CliffDetector::RobotSide)walldir()) > 50 &&
+               AvgRangeError(walldir()) > -0.1)) &&
+             by_line_) {
+      by_line_ = false;
     }
     // Check if we have reached the end of a wall and should uturn.
-    else if (AvgRangeError(walldir()) < -0.1 /*Tune*/ && !uturn_) {
+    else if (AvgRangeError(walldir()) < -0.1 /*Tune*/ && !uturn_ && !by_line_) {
       Serial.print("\nPAST wall. Distance to wall:\t");
       Serial.println(AvgRangeError(walldir()));
       uturn_ = true;
@@ -143,7 +154,7 @@ void Drivetrain::Run() {
     // Keep going if we still see the wall.
     else if (AvgRangeError(walldir()) > -0.00 /*Tune*/ && uturn_) {
       double dist = 0.4;
-      if (walldir() == kLeft) dist = 0.2;
+      if (walldir() == kLeft) dist = 0.3;
       DriveDist(dist + cur_dist, dir_, power_, false);
     }
     // Check if we are in a uturn and need to change direction.
@@ -160,7 +171,7 @@ void Drivetrain::Run() {
           break;
         case kForward:
           uturn_state_ = kSide;
-          DriveDist(0.3/*tune*/, walldir(), power_, false);
+          DriveDist(0.5/*tune*/, walldir(), power_, false);
           break;
       }
     }
@@ -224,8 +235,24 @@ void Drivetrain::UpdateEncoders() {
     prev_enc_[i] = enc_[i];
   }
 
-  // Warning: If using single encoders, change code to use gyro to determine
-  // which direction the robot is turning in.
+  // Notes:
+  // This is the code that attempts to estimate the position of the robot based
+  // on the change in encoder values from the previous timestep. There are a few
+  // important thigns to keep in mind with regards to this:
+  // -We are using single encoders; ie, the encoders themselves do not know
+  // direction they are turning in. Currently, the estimate of which direction
+  // we are going in can be found at the assignment of abs_pos_.
+  // -One potential improvement to make is to, rather than averaging the encoder
+  // values, use the lowest one; this means that if one encoder is slipping
+  // drastically and the other isn't, then the slipping one will be completely
+  // ignored.
+  // -Another possibility might be to just complete ignore movement that is
+  // perpendicular to the current direction of travel, on the basis that any
+  // movement in that direction will just result in more error.
+  // -Perhaps the detection for which direction the wheels are moving should be
+  // based on the current command to the motors (eg, whether fmotor_.read() > 90
+  // for the motor on the fron tof the bot), rather than on which direction the
+  // robot is currently wall following.
   float upvel = (enc_vel_[kLeft] + enc_vel_[kRight]) / 2.0;
   float sidevel = (enc_vel_[kUp] + enc_vel_[kDown]) / 2.0;
   float turn = // Positive = CCW
@@ -244,15 +271,16 @@ void Drivetrain::UpdateEncoders() {
   if (!wall_on_left_) {
     fin_pos_ = abs_pos_;
   }
-  char outstr[120], line2[120], tempx[6], tempy[6];
+  char outstr[120], line2[120], tempx[6], tempy[6], tempz[6];
   const float kMeterstoIn = 39.37;
   // Arduino doesn't support the %f modifier...
   dtostrf(fin_pos_.x * kMeterstoIn, 4, 1, tempx);
   dtostrf(fin_pos_.y * kMeterstoIn, 4, 1, tempy);
+  dtostrf(z_pos_, 4, 1, tempz);
   sprintf(outstr, "X: %s Y: %s", tempx, tempy);
   Serial.println(outstr);
-  sprintf(line2, "%s Z: %3d %2d", wall_on_left_ ? "Out" : "On!",
-          10, cliff_.last_on_line((CliffDetector::RobotSide)walldir()));
+  sprintf(line2, "%s Z: %s %2d", wall_on_left_ ? "Out" : "On!",
+          tempz, cliff_.last_on_line((CliffDetector::RobotSide)walldir()));
   print(outstr, line2);
   abs_pos_.theta += vel_.theta * dt;
   imu_.set_est_rate(vel_.theta);
@@ -300,11 +328,16 @@ void Drivetrain::UpdateMotors() {
   // RangeError() returns negative if we are too far away.
   float rangepower =  - kPrange * RangeError(walldir()) * 100;
   if (wall_on_left_) rangepower *= -1;
-  rangepower = wall_follow_ ? rangepower : 0;
-  if (cliff_.last_on_line((CliffDetector::RobotSide)walldir()) < 40) rangepower = -50;
+  rangepower = (wall_follow_ && !by_line_) ? rangepower : 0;
+  if (cliff_.last_on_line((CliffDetector::RobotSide)walldir()) < 23)
+    rangepower = wall_on_left_ ? 90 : -90;
   if (stopping_) {
     rightpower = 0;
     leftpower = 0;
+  }
+  if (cliff_.on_line((CliffDetector::RobotSide)dir())) {
+    rightpower = -20;
+    rightpower = -20;
   }
   switch (dir_) {
     // TODO: Confirm that these cases are correct.
