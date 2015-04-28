@@ -5,7 +5,9 @@
 
 class LCD {
  public:
+ //sets the lcd ports
   LCD() : lcd_(40, 41, 42, 43, 44, 45) {
+    begins the lcd with 2 lines of 16 characers
     lcd_.begin(16, 2);
   }
  private:
