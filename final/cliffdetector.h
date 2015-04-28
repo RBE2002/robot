@@ -21,7 +21,7 @@ class CliffDetector : public Loop {
   // Takes an array of ports for the sensor being used, a cutoff (in units as
   // read from the ADC) for what is black/white for the sensor.
   // The ports are, in order, Front, Left, Back, and Right.
-  CliffDetector(int ports[kNumMotors], int cutoff = 500)
+  CliffDetector(int ports[kNumMotors], int cutoff = 480)
       : kCutoff(cutoff), Loop(1e4 /* 100Hz */) {
         for (int i = 0; i < kNumMotors; i++) {
           ports_[i] = ports[i];

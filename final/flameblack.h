@@ -16,12 +16,13 @@ class FlameBlack : public Loop {
 
   // REturns 0.0 - 1.0; 0 = no flame, 1 = sensor on fire (not really).
   double strength() { return strength_; }
+  int raw() { return raw_; }
 
   void Run() {
-    int raw = analogRead(port_);
+    raw_ = analogRead(port_);
     last_flame_ = flame_;
-    flame_ = raw < kCutoff;
-    strength_ = (double)(raw - kMin) / (double)(kMax - kMin);
+    flame_ = raw_ < kCutoff;
+    strength_ = (double)(raw_ - kMin) / (double)(kMax - kMin);
   }
 
  private:
@@ -31,6 +32,7 @@ class FlameBlack : public Loop {
   bool flame_;
   bool last_flame_; // Whether we saw the flame on the last iteratoin as well.
   double strength_;
+  int raw_;
   int port_;
 };
 

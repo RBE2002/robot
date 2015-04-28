@@ -114,6 +114,10 @@ class Drivetrain : public Loop {
   bool drive_dist_done() { return drive_dist_done_; }
   bool stopping() { return stopping_; }
   void set_z(double z) { z_pos_ = z; }
+  void set_found(bool found) { found_ = found; }
+  void set_candle_dir(Direction candle_dir) { candle_dir_ = candle_dir; }
+  double abs_x() { return abs_pos_.x; }
+  double abs_y() { return abs_pos_.y; }
 
  private:
   const float kTicksToMeters = 2.0 * PI / 360.0 /* ticks to radians */
@@ -156,6 +160,7 @@ class Drivetrain : public Loop {
   unsigned long time_;
 
   Direction dir_;
+  Direction candle_dir_; // Direction in which candle is in; used for position.
   bool stopping_; // True if in process of stopping.
   double power_; // Power with which we are running the motors, 0.0 - 1.0;
   vector::Vector<Record> path_;
@@ -170,6 +175,7 @@ class Drivetrain : public Loop {
   bool wall_on_left_; // True if the wall is to our left. Default to false.
   unsigned long stop_end_;
   double z_pos_; // Height of candle to print on screen.
+  bool found_; // Whether the flame has been found.
   enum {
     kForward,
     kSide,

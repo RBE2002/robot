@@ -67,6 +67,7 @@ class Navigator : public Loop {
   int cur_z_servo_;
   int highest_flame_; // Most powerful detected flame value.
   unsigned long next_inc_z_;
+  unsigned long stop_for_flame_; // Time at which to stop for flame.
 };
 
 #endif  // __NAVIGATOR_H__

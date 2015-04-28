@@ -35,50 +35,56 @@ void Navigator::Start() {
   Tilt(-1);
   drive_.set_navigating(true);
   drive_.set_wall_follow(true);
-  drive_.DriveDirection(Drivetrain::kUp, 0.8);
+  drive_.DriveDirection(Drivetrain::kUp, 0.7);
 }
 
 void Navigator::Run() {
   UpdateTurret();
   // TODO: Refine this so it all is actually accurate, reports positions, etc.
   if (flame_out_) {
-    if (drive_.get_path().size() >= ((num_legs_ - 1) * 2)) {
+    // Reminder: In meters.
+    if (abs(drive_.abs_x()) < 0.1 && abs(drive_.abs_y()) < 0.1) {
       drive_.set_navigating(false);
-      drive_.set_wall_follow(true);
+      drive_.set_wall_follow(false);
       // For last leg, go correct distance.
-      vector::Vector<Drivetrain::Record> path = drive_.get_path();
-      drive_.DriveDist(path[1].dist, drive_.dir(), 0.8);
+      //vector::Vector<Drivetrain::Record> path = drive_.get_path();
+      //drive_.DriveDist(path[1].dist, drive_.dir(), 0.8);
+      drive_.Stop(false);
     }
   } else if (red_.flame() && !saw_flame_ && !drive_.stopping()) {
     saw_flame_ = true;
     walling_ = false;
+    stop_for_flame_ = millis() + 700; // Don't stop too early for flame.
     final_dir_ = (int)drive_.tabledir();
+    drive_.set_candle_dir((Drivetrain::Direction)final_dir_);
     drive_.set_navigating(false);
     drive_.set_wall_follow(false);
-    drive_.Stop(false);
+    drive_.Stop(true);
+    drive_.set_found(true);
     at_flame_ = false;
   } else if (flame_z_ && !at_flame_) {
-    if (red_.raw() < 200) {
+    if (red_.raw() < 125) {
       turret_.Stop();
       drive_.Stop();
       at_flame_ = true;
     }
-  } else if (saw_flame_ && !flame_z_) {
+  } else if (saw_flame_ && millis() > stop_for_flame_ && !flame_z_) {
+    drive_.Stop(true);
     if (millis() > next_inc_z_) {
       cur_z_servo_ -= 1;
       next_inc_z_ = millis() + 100;
     }
     Tilt(cur_z_servo_);
-    if (red_.raw() < highest_flame_) {
-      highest_flame_ = red_.raw();
+    if (black_.raw() < highest_flame_) {
+      highest_flame_ = black_.raw();
       lowest_z_servo_ = cur_z_servo_;
     }
     if (cur_z_servo_ <= -20) {
       flame_z_ = true;
-      double height = ((double)lowest_z_servo_ / 5.0 + 10.0);
+      double height = ((double)lowest_z_servo_ / 3.0 + 12.0);
       drive_.set_z(height);
       Tilt(lowest_z_servo_ + 5/*Necessary offset b/c flame sensor is at top*/);
-      drive_.DriveDirection(drive_.tabledir(), 0.8);
+      drive_.DriveDirection(drive_.tabledir(), 0.7);
     }
   } else if (at_flame_ && flame_z_) {
     Fan(true);
@@ -100,7 +106,7 @@ void Navigator::Run() {
       drive_.set_wall_follow(true);
       drive_.set_wall_side(true /*Follow on left*/);
       drive_.DriveDirection(
-          (Drivetrain::Direction)((final_dir_ + 2) % 4), 0.8);
+          (Drivetrain::Direction)((final_dir_ + 2) % 4), 0.7);
       flame_out_ = true;
       num_legs_ = drive_.get_path().size();
     }

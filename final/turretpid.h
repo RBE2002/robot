@@ -33,6 +33,7 @@ class TurretPID : public Loop {
         setpoint_(0),
         max_limit_(turret_max),
         min_limit_(turret_min),
+        stopped_(false),
         Loop(1e4 /*10000us => 100 Hz*/) {
     motor_.attach(motor, 1000, 2000);
     pinMode(max_limit_, INPUT_PULLUP);
@@ -81,7 +82,10 @@ class TurretPID : public Loop {
   // Actually performs PID calculation and writes it to the motor.
   void Run() { motor_.write(OutToRaw(Calc())); }
 
-  void Stop() { motor_.write(90); }
+  void Stop() {
+    stopped_ = true;
+    motor_.write(90);
+  }
 
  private:
   // TODO: Tune
@@ -109,6 +113,7 @@ class TurretPID : public Loop {
   // Analog In port of pot.
   uint8_t pot_;
   int max_limit_, min_limit_; // Ports of limit sensors.
+  bool stopped_;
   // Servo object for motor.
   Servo motor_;
 };

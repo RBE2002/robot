@@ -37,5 +37,7 @@ int TurretPID::Calc() {
       retval < 0) {  // We are running into the lower limit.
     return 0;
   }
+  if (abs(error) < 10) return 0;
+  if (stopped_) return 0;
   return retval;
 }

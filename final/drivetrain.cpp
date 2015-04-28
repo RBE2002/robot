@@ -18,6 +18,7 @@ Drivetrain::Drivetrain(int motors[kNumMotors], bool inverted[kNumMotors],
       uturn_(false),
       wall_on_left_(false),
       stopping_(false),
+      found_(false),
       stop_end_(0),
       dir_(kUp),
       drive_dist_(-1),
@@ -131,10 +132,11 @@ void Drivetrain::Run() {
       Serial.println(AvgRangeError(dir_));
       DriveDirection(tabledir(), power_);
       if (cliff_.on_line((CliffDetector::RobotSide)dir_)) by_line_ = true;
+      else by_line_ = false;
     }
     // Check if we were following a cliff and have now reached a wall again.
     else if ((cliff_.last_on_line((CliffDetector::RobotSide)walldir()) > 300 ||
-              (cliff_.last_on_line((CliffDetector::RobotSide)walldir()) > 50 &&
+              (cliff_.last_on_line((CliffDetector::RobotSide)walldir()) > 25 &&
                AvgRangeError(walldir()) > -0.1)) &&
              by_line_) {
       by_line_ = false;
@@ -253,8 +255,8 @@ void Drivetrain::UpdateEncoders() {
   // based on the current command to the motors (eg, whether fmotor_.read() > 90
   // for the motor on the fron tof the bot), rather than on which direction the
   // robot is currently wall following.
-  float upvel = (enc_vel_[kLeft] + enc_vel_[kRight]) / 2.0;
-  float sidevel = (enc_vel_[kUp] + enc_vel_[kDown]) / 2.0;
+  float upvel = min(enc_vel_[kLeft], enc_vel_[kRight]);
+  float sidevel = min(enc_vel_[kUp], enc_vel_[kDown]);
   float turn = // Positive = CCW
       (enc_vel_[kRight] - enc_vel_[kLeft] + enc_vel_[kDown] - enc_vel_[kUp]) /
       (4.0 * kRobotRadius);
@@ -271,16 +273,27 @@ void Drivetrain::UpdateEncoders() {
   if (!wall_on_left_) {
     fin_pos_ = abs_pos_;
   }
-  char outstr[120], line2[120], tempx[6], tempy[6], tempz[6];
+  char outstr[120], absstr[120], line2[120], tempx[6], tempy[6], tempz[6];
   const float kMeterstoIn = 39.37;
+  const float kCandleDist = 0.1; // Distance from candle
+  double finx =
+      fin_pos_.x + (candle_dir_ == kRight ? kCandleDist : candle_dir_ == kLeft
+                    ? -kCandleDist : 0);
+  double finy =
+      fin_pos_.y + (candle_dir_ == kUp ? kCandleDist : candle_dir_ == kDown
+                    ? -kCandleDist : 0);
   // Arduino doesn't support the %f modifier...
   dtostrf(fin_pos_.x * kMeterstoIn, 4, 1, tempx);
   dtostrf(fin_pos_.y * kMeterstoIn, 4, 1, tempy);
   dtostrf(z_pos_, 4, 1, tempz);
   sprintf(outstr, "X: %s Y: %s", tempx, tempy);
+  // Print out actual absolute position for debugging.
+  dtostrf(abs_pos_.x * kMeterstoIn, 4, 1, tempx);
+  dtostrf(abs_pos_.y * kMeterstoIn, 4, 1, tempy);
+  sprintf(absstr, "X: %s Y: %s", tempx, tempy);
   Serial.println(outstr);
-  sprintf(line2, "%s Z: %s %2d", wall_on_left_ ? "Out" : "On!",
-          tempz, cliff_.last_on_line((CliffDetector::RobotSide)walldir()));
+  sprintf(line2, "%s Z %s", wall_on_left_ ? "Out  " : (found_ ? "Found" : "On!  "),
+          tempz);
   print(outstr, line2);
   abs_pos_.theta += vel_.theta * dt;
   imu_.set_est_rate(vel_.theta);
