@@ -55,10 +55,10 @@ class Navigator : public Loop {
 
   // State variables
   bool walling_; // Whether we are currently navigating around the walls.
-  bool saw_flame_;
-  bool flame_out_;
-  bool at_flame_;
-  bool flame_z_;
+  bool saw_flame_; //Whether a flame has been detected
+  bool flame_out_; //Whether the flame has been put out
+  bool at_flame_; //Whether the robot has reached a location close to the flame to begin extinguishing
+  bool flame_z_; //Whether the Z coordinate of the flame has been estimated
   int num_legs_; // Number of legs in path.
   unsigned long flame_done_; // How long to wait after fan turns off to check flame.
   unsigned long fan_done_; // How long to wait after flame goes to turn of fan.

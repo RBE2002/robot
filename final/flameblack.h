@@ -3,6 +3,7 @@
 #include "Arduino.h"
 #include "loop.h"
 
+//code for the black flame sensor and its functions
 class FlameBlack : public Loop {
  public:
   FlameBlack(int port = 0)

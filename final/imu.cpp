@@ -39,8 +39,10 @@ IMU::IMU()
 }
 
 void IMU::CalibrateGyro() {
+  //sets the origin of the gyro at the front
   gyro_zero_ = 0;
   int iterations = 100;
+  //counter acts gyro drift to keep the robot facting straight
   for (int i = 0; i < iterations; i++) {
     gyro_.read();
     gyro_zero_ += (double)gyro_.g.z * kRawGyroToRad;
@@ -65,6 +67,7 @@ bool IMU::RejectCompass() {
   return true;
   // If any of various conditions occur, then it will reject.
 
+  //checks rate of change of compass for later use
   double compass_rate = get_compass_rate();
   const double kRateCutoff = 20.0;
 
