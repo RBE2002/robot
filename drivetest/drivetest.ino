@@ -12,6 +12,7 @@
 #include "drivetrain.h"
 #include "constants.h"
 
+//allocates a new drivetrain to be used
 Drivetrain *drive;
 
 unsigned long start;
@@ -25,10 +26,14 @@ void setup() {
   drive = new Drivetrain(motor_ports, motor_inversions, encoder_ports, range_ports);
   Serial.println("Beginning Gyro Calibration!");
   drive->imu_.CalibrateGyro();
+  //waits for the gyro to calibrate before allowing start
   Serial.println("Calibrated Gyro.");
+  
+  //turns on wall following
   drive->set_wall_follow(true);
+  //turns on gyro based navigation
   drive->set_navigating(true);
-
+  //sets the drive direction so that it follows facing the right side.
   drive->DriveDirection(/*0.5, */Drivetrain::kUp, 0.5);
   start = millis();
 }
