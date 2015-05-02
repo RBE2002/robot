@@ -1,6 +1,11 @@
 #About
 This is the code for our WPI RBE2002 D-term 2015 final project.
 
+All the code that actually ran on the final robot can be found in `final/`.
+
+The remaining directories are for testing/calibrating individual mechanisms and
+contain symbolic links to files in `final/`.
+
 #Installation
 This code should work be default with the standard Arduino IDE and
 the WPI RBE Arduino Libraries. The libraries can be downloaded from:

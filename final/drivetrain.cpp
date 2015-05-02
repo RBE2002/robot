@@ -25,18 +25,26 @@ Drivetrain::Drivetrain(int motors[kNumMotors], bool inverted[kNumMotors],
       drive_dist_done_(true),
       by_line_(false),
       z_pos_(10),
-      lcd_(40, 41, 42, 43, 44, 45) {  // TODO: Break out range port definition.
+      lcd_(40, 41, 42, 43, 44, 45) {
+
+  // Attach the motors.
   fmotor_.attach(motors[0], 1000, 2000);
   lmotor_.attach(motors[1], 1000, 2000);
   bmotor_.attach(motors[2], 1000, 2000);
   rmotor_.attach(motors[3], 1000, 2000);
+
+  // Set more stuff to zero.
   pos_.x = 0;
   pos_.y = 0;
   pos_.theta = 0;
   abs_pos_.x = 0;
   abs_pos_.y = 0;
   abs_pos_.theta = 0;
+
+  // Initialize LCD.
   lcd_.begin(16, 2);
+
+  // Initialize members of various arrays.
   for (int i = 0; i < kNumMotors; i++) {
     range_[i].init(range[i]);
     enc_[i] = 0;
@@ -47,14 +55,17 @@ Drivetrain::Drivetrain(int motors[kNumMotors], bool inverted[kNumMotors],
 }
 
 void Drivetrain::WriteMotors(int front, int left, int back, int right) {
+  // Convert from -100 to 100 values into raw servo values (0 - 180).
   int fraw = PercentToServo(front);
   int lraw = PercentToServo(left);
   int braw = PercentToServo(back);
   int rraw = PercentToServo(right);
+  // Flip outputs for inverted motors.
   fraw = finv_ ? 184 - fraw : fraw;
   lraw = linv_ ? 184 - lraw : lraw;
   braw = binv_ ? 184 - braw : braw;
   rraw = rinv_ ? 184 - rraw : rraw;
+  // Clip outputs.
   int kMaxRaw = 175;
   int kMinRaw = 5;
   fraw = (fraw > kMaxRaw) ? kMaxRaw : (fraw < kMinRaw) ? kMinRaw : fraw;
@@ -71,6 +82,7 @@ void Drivetrain::WriteMotors(int front, int left, int back, int right) {
   Serial.print("\t");
   Serial.println(rraw);
 #endif
+  // Perform actual write.
   fmotor_.write(fraw);
   lmotor_.write(lraw);
   bmotor_.write(braw);
@@ -87,6 +99,7 @@ void Drivetrain::Run() {
   Serial.print("\t");
   Serial.println(AvgRangeError(kRight));
 #endif
+  // Record time so that we have a semi-precise dt for any P(ID) loops.
   time_ = micros();
 
   UpdateEncoders();
@@ -202,6 +215,8 @@ void Drivetrain::Run() {
 }
 
 // Performs a third-order fit to linearize from percent to 0 - 180 scale.
+// Based on data collected by running motors at certain servo out values and
+// recording the speed of the motors.
 int Drivetrain::PercentToServo(int percent) {
   percent = (percent > 100) ? 100 : (percent < -100) ? -100 : percent;
   const int kMax = 140;
@@ -218,61 +233,56 @@ int Drivetrain::PercentToServo(int percent) {
   double x2 = x1 * x1;
   double x3 = x2 * x1;
   double raw = kc0 + kc1 * x1 + kc2_signed * x2 + kc3 * x3;
-  //if (percent < 0) raw = (180 - raw);
 
   if (percent == 0) raw = (kStartDead + kEndDead) / 2;
   return raw;
 }
 
 void Drivetrain::UpdateEncoders() {
+  // Read in most recent encoder values.
+  // Note that we are not using quadrature encoders, so the values we read will
+  // always be positive and strictly increasing.
   enc_[0] = fenc_.read() * kTicksToMeters;
   enc_[1] = lenc_.read() * kTicksToMeters;
   enc_[2] = benc_.read() * kTicksToMeters;
   enc_[3] = renc_.read() * kTicksToMeters;
 
+  // dt, in seconds.
   float dt = (time_ - prev_time_) * 1e-6;
 
+  // Update velocities.
   for (int i = 0; i < kNumMotors; i++) {
     enc_vel_[i] = (enc_[i] - prev_enc_[i]) / dt;
     prev_enc_[i] = enc_[i];
   }
 
-  // Notes:
-  // This is the code that attempts to estimate the position of the robot based
-  // on the change in encoder values from the previous timestep. There are a few
-  // important thigns to keep in mind with regards to this:
-  // -We are using single encoders; ie, the encoders themselves do not know
-  // direction they are turning in. Currently, the estimate of which direction
-  // we are going in can be found at the assignment of abs_pos_.
-  // -One potential improvement to make is to, rather than averaging the encoder
-  // values, use the lowest one; this means that if one encoder is slipping
-  // drastically and the other isn't, then the slipping one will be completely
-  // ignored.
-  // -Another possibility might be to just complete ignore movement that is
-  // perpendicular to the current direction of travel, on the basis that any
-  // movement in that direction will just result in more error.
-  // -Perhaps the detection for which direction the wheels are moving should be
-  // based on the current command to the motors (eg, whether fmotor_.read() > 90
-  // for the motor on the fron tof the bot), rather than on which direction the
-  // robot is currently wall following.
+  // We use the minimum of each pair of encoders facing in the same direction
+  // because there is so much slippage in the wheels that whichever encoder is
+  // outputing the lowest values is most likely write. This seems to work
+  // reasonably well in practice.
   float upvel = min(enc_vel_[kLeft], enc_vel_[kRight]);
   float sidevel = min(enc_vel_[kUp], enc_vel_[kDown]);
+  // Calculcate angular velocity; unused in practice.
   float turn = // Positive = CCW
       (enc_vel_[kRight] - enc_vel_[kLeft] + enc_vel_[kDown] - enc_vel_[kUp]) /
       (4.0 * kRobotRadius);
   vel_.x = sidevel;
   vel_.y = upvel;
   vel_.theta = turn;
+  // pos_ is just the change in position since the last change in direction. It
+  // is always positive.
   pos_.x += vel_.x * dt;
   pos_.y += vel_.y * dt;
   pos_.theta += vel_.theta;
   // abs_pos actulaly cares about the sign, so determine if the direction is up
-  // or right (using the modulo 3).
+  // or right (using the modulo 3 as a trick to get there).
   abs_pos_.x += vel_.x * dt * (((int)dir_ % 3) ? -1 : 1);
   abs_pos_.y += vel_.y * dt * (((int)dir_ % 3) ? -1 : 1);
   if (!wall_on_left_) {
     fin_pos_ = abs_pos_;
   }
+
+  // Print various information out to the LCD.
   char outstr[120], absstr[120], line2[120], tempx[6], tempy[6], tempz[6];
   const float kMeterstoIn = 39.37;
   const float kCandleDist = 0.1; // Distance from candle
@@ -295,7 +305,14 @@ void Drivetrain::UpdateEncoders() {
   sprintf(line2, "%s Z %s", wall_on_left_ ? "Out  " : (found_ ? "Found" : "On!  "),
           tempz);
   print(outstr, line2);
+
+  // Unused
   abs_pos_.theta += vel_.theta * dt;
+
+  // Set imu filter weights.
+  // Currently, don't perform any filtering and just take the current estimate
+  // of angle from the gyro as the Word Of God. The drift that the gyro exhibits
+  // over the course of a few minutes is negligible.
   imu_.set_est_rate(vel_.theta);
   imu_.set_est_rate_weight(0);  // TODO: Tune.
   imu_.set_est_angle(vel_.theta);
@@ -316,6 +333,8 @@ void Drivetrain::UpdateEncoders() {
 }
 
 void Drivetrain::UpdateMotors() {
+  // All this first part does is run the drivetrain at the appropriate power and
+  // performs a simple P feedback loop to keep the drivetrain pointed straight.
   double rate = imu_.get_rate();
   double angle = imu_.get_angle();
   double rate_error =
@@ -337,24 +356,30 @@ void Drivetrain::UpdateMotors() {
 #endif  // DEBUG
 
   // Handle wall following.
-  // Always use line following sensor to right of current direction.
+  // Always use range sensor to right of current direction.
   // RangeError() returns negative if we are too far away.
   float rangepower =  - kPrange * RangeError(walldir()) * 100;
   if (wall_on_left_) rangepower *= -1;
   rangepower = (wall_follow_ && !by_line_) ? rangepower : 0;
+
+  // If we recently hit a cliff, get away from it ASAP.
   if (cliff_.last_on_line((CliffDetector::RobotSide)walldir()) < 23)
     rangepower = wall_on_left_ ? 90 : -90;
+
+  // If stopping, we don't want to keep moving, but we still want to account for
+  // the wall following to avoid running into walls or cliffs.
   if (stopping_) {
     rightpower = 0;
     leftpower = 0;
   }
+
+  // Reverse if we just hit a line.
   if (cliff_.on_line((CliffDetector::RobotSide)dir())) {
     rightpower = -20;
     rightpower = -20;
   }
+
   switch (dir_) {
-    // TODO: Confirm that these cases are correct.
-    // TODO: Check sign on rangepower stuff.
     case kUp:
       WriteMotors(rangepower, leftpower, rangepower, rightpower);
       break;
@@ -381,11 +406,11 @@ void Drivetrain::Stop(bool resume) {
 }
 
 void Drivetrain::DriveDirection(Direction heading, float power) {
+#ifdef DEBUG
   Serial.print("Driving Power: ");
   Serial.print(power);
   Serial.print("\tHeading: ");
   Serial.println(heading);
-#ifdef DEBUG
 #endif  // DEBUG
   drive_dist_ = -1;
   power_ = power;

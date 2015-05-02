@@ -20,12 +20,12 @@ int TurretPID::Calc() {
   if (retval > max) retval = max;
   if (retval < -max) retval = -max;
   prev_error_ = error;
-//#ifdef DEBUG
+#ifdef DEBUG
   Serial.print("Error:\t");
   Serial.print(error);
   Serial.print("\tOut:\t");
   Serial.println(retval);
-//#endif  // DEBUG
+#endif  // DEBUG
 
   //checks for problems with the potentiometer values
   if (potval > kMaxPot || potval < kMinPot) { //if the potentiometer has been overturned

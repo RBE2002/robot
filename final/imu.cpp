@@ -17,7 +17,7 @@ IMU::IMU()
   // CTRL6 controls the resolution.
   compass_.writeReg(LSM303::CTRL6, k2Gauss);
   // Turn off accelerometer.
-  char AODR = 0x6 << 4; // 100Hz accel data selection.
+  char AODR = 0x6 << 4;  // 100Hz accel data selection.
   char AZEN = 0x1 << 2;
   char AYEN = 0x1 << 1;
   char AXEN = 0x1;
@@ -35,18 +35,18 @@ IMU::IMU()
   // Initialize the gyro. It is already initialized to the lowest dps option.
   gyro_.init();
   gyro_.enableDefault();
-
 }
 
 /**
-  * Takes time to set the basic gyro heading regardless of initial direction to forward
-  * Runs at start of robot before the otehr processes start
-  */
+ * Takes time to set the basic gyro heading regardless of initial direction to
+ * forward
+ * Runs at start of robot before the otehr processes start
+ */
 void IMU::CalibrateGyro() {
-  //sets the origin of the gyro at the front
+  // sets the origin of the gyro at the front
   gyro_zero_ = 0;
   int iterations = 100;
-  //counter acts gyro drift to keep the robot facting straight
+  // counter acts gyro drift to keep the robot facting straight
   for (int i = 0; i < iterations; i++) {
     gyro_.read();
     gyro_zero_ += (double)gyro_.g.z * kRawGyroToRad;
@@ -57,43 +57,48 @@ void IMU::CalibrateGyro() {
 
 // Called at 100Hz by the Loop stuff.
 /**
-  * The basic process to be continuously called in loop for running and managing the imu interactions
+  * The basic process to be continuously called in loop for running and managing
+  *the imu interactions
   *
   */
 void IMU::Run() {
-  //count time in microseconds for calculation of rates
+  // count time in microseconds for calculation of rates
   time_ = micros();
-  //reads the gyro and stores its information
+  // reads the gyro and stores its information
   gyro_.read();
-  //reads the compass and stores the information
+  // reads the compass and stores the information
   compass_.read();
-  //finds rate of change of compass and updates the last_compass_heading_ variable
+  // finds rate of change of compass and updates the last_compass_heading_
+  // variable
   UpdateCompass();
   Filter();
-  //stores the time so that the function has previous values to calculate rates of change
+  // stores the time so that the function has previous values to calculate rates
+  // of change
   last_time_ = time_;
 }
 
 /**
   * Checks for various conditions which my indicate compass inaccuracies
   *
-  */  
+  */
 bool IMU::RejectCompass() {
   return true;
   // If any of various conditions occur, then it will reject.
 
-  //checks rate of change of compass for later use
+  // checks rate of change of compass for later use
   double compass_rate = get_compass_rate();
   const double kRateCutoff = 20.0;
 
   // Check if compass rate seriously mis-matches estimated rate.
-  if (abs(est_rate_ - compass_rate_) > kRateCutoff && est_rate_weight_) return true;
+  if (abs(est_rate_ - compass_rate_) > kRateCutoff && est_rate_weight_)
+    return true;
 
   // Check if compass rate matches the gyro rate.
   if (abs(get_gyro_vel() - compass_rate_) > kRateCutoff) return true;
 
   // Check if there is an excessive magnetic field.
-  // This is not a perfect test, but is just meant as an order-of-magnitude thing.
+  // This is not a perfect test, but is just meant as an order-of-magnitude
+  // thing.
   if (abs(compass_.m.x) + abs(compass_.m.y) + abs(compass_.m.z) >
       kMaxRawCompass)
     return true;
@@ -101,33 +106,37 @@ bool IMU::RejectCompass() {
   return false;
 }
 
-
 /**
   * Updates various compass values. Run once every cycle of IMU Run
   *
   */
 bool IMU::UpdateCompass() {
-  //if the compass heading has not changed
+  // if the compass heading has not changed
   if (compass_.heading() == last_compass_heading_) return false;
-  //calculate the compass rate of change
+  // calculate the compass rate of change
   compass_rate_ =
-      (compass_.heading() - last_compass_heading_) / (time_ - last_time_) * 1e6; //simple calculation, change in direction over change in time
-  //store the current compass heading for later calculation
+      (compass_.heading() - last_compass_heading_) / (time_ - last_time_) *
+      1e6;  // simple calculation, change in direction over change in time
+  // store the current compass heading for later calculation
   last_compass_heading_ = compass_.heading();
   return true;
 }
 
 void IMU::Filter() {
-  // For now, just use simplistic averaging.
-  rate_ = get_gyro_vel();//(get_gyro_vel() * kGyroRateWeight +
-           //est_rate_ * est_rate_weight_) /
-          //(kGyroRateWeight + est_rate_weight_);
+  // For now, because we don't care about anything except the gyro, comment out
+  // any filtering stuff to avoid accidentally messing with the gyro values.
+  rate_ = get_gyro_vel();  //(get_gyro_vel() * kGyroRateWeight +
+  // est_rate_ * est_rate_weight_) /
+  //(kGyroRateWeight + est_rate_weight_);
 
-  angle_ = rate_ * (time_ - last_time_) * 1e-6 + angle_;// * kPreviousAngleWeight +
-           // est_angle_ * est_rate_weight_) /
-           //(kPreviousAngleWeight + est_rate_weight_);
-  if (angle_ > PI) angle_ -= 2 * PI;
-  else if (angle_ < -PI) angle_ += 2 * PI;
+  angle_ =
+      rate_ * (time_ - last_time_) * 1e-6 + angle_;  // * kPreviousAngleWeight +
+  // est_angle_ * est_rate_weight_) /
+  //(kPreviousAngleWeight + est_rate_weight_);
+  if (angle_ > PI)
+    angle_ -= 2 * PI;
+  else if (angle_ < -PI)
+    angle_ += 2 * PI;
 #ifdef DEBUG
   Serial.print("rate:\t");
   Serial.print(rate_);

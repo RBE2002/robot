@@ -5,7 +5,7 @@
 Navigator::Navigator()
     : Loop(1e4 /*100Hz*/),
       drive_(motor_ports, motor_inversions, encoder_ports, range_ports),
-      turret_(turret_motor, turret_pot, 0.9, 0.03, 0.0),  // TODO: Tune
+      turret_(turret_motor, turret_pot, 0.9, 0.03, 0.0),
       red_(red_port),
       black_(black_port),
       walling_(true),
@@ -40,18 +40,18 @@ void Navigator::Start() {
 
 void Navigator::Run() {
   UpdateTurret();
-  // TODO: Refine this so it all is actually accurate, reports positions, etc.
   if (flame_out_) {
+    // This handles stopping the drivetrain when we return to within a certain
+    // tolerance of the original position.
     // Reminder: In meters.
     if (abs(drive_.abs_x()) < 0.1 && abs(drive_.abs_y()) < 0.1) {
       drive_.set_navigating(false);
       drive_.set_wall_follow(false);
-      // For last leg, go correct distance.
-      //vector::Vector<Drivetrain::Record> path = drive_.get_path();
-      //drive_.DriveDist(path[1].dist, drive_.dir(), 0.8);
       drive_.Stop(false);
     }
   } else if (red_.flame() && !saw_flame_ && !drive_.stopping()) {
+    // This handles what happens when we first see a flame and need to stop and
+    // start approaching the flame.
     saw_flame_ = true;
     walling_ = false;
     stop_for_flame_ = millis() + 700; // Don't stop too early for flame.
@@ -63,22 +63,34 @@ void Navigator::Run() {
     drive_.set_found(true);
     at_flame_ = false;
   } else if (flame_z_ && !at_flame_) {
+    // Handles determining when/whether we have reached the flame.
     if (red_.raw() < 125) {
       turret_.Stop();
       drive_.Stop();
       at_flame_ = true;
     }
   } else if (saw_flame_ && millis() > stop_for_flame_ && !flame_z_) {
+    // Handles determining height of flame by moving tilt servo up and down and
+    // using the strongest flame reading to calculate the approximate height of
+    // the flame.
     drive_.Stop(true);
+
+    // Don't move the tilt too quickly...
     if (millis() > next_inc_z_) {
       cur_z_servo_ -= 1;
       next_inc_z_ = millis() + 100;
     }
     Tilt(cur_z_servo_);
+
+    // Determine if we are seeing the strongest flame reading (lowest raw
+    // value).
     if (black_.raw() < highest_flame_) {
       highest_flame_ = black_.raw();
       lowest_z_servo_ = cur_z_servo_;
     }
+
+    // Once we are done with the tilt, calculate the final x position and start
+    // driving towards the candle.
     if (cur_z_servo_ <= -20) {
       flame_z_ = true;
       double height = ((double)lowest_z_servo_ / 3.0 + 12.0);
@@ -87,6 +99,10 @@ void Navigator::Run() {
       drive_.DriveDirection(drive_.tabledir(), 0.7);
     }
   } else if (at_flame_ && flame_z_) {
+    // Handles once we ahve reached the flame and need to go about blowing it
+    // out; contains logic to continue to esnrue that the candle really has gone
+    // out even after we turn the fan off, in case the candle doesn't fully go
+    // out the first time.
     Fan(true);
     drive_.Stop(false);
     // Check until flame goes out and then wait a couple seconds.
