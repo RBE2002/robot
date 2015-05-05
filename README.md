@@ -1,6 +1,8 @@
 #About
 This is the code for our WPI RBE2002 D-term 2015 final project.
 
+The github repository for this code can be found at https://github.com/RBE2002/robot
+
 All the code that actually ran on the final robot can be found in `final/`.
 
 The remaining directories are for testing/calibrating individual mechanisms and
